@@ -37,7 +37,7 @@ def load_model():
 model, medians = load_model()
 
 # =====================================================
-# Custom CSS with Normal Buttons & BMI Styling
+# Custom CSS 
 # =====================================================
 st.markdown("""
 <style>
@@ -145,32 +145,80 @@ div.stForm button:hover {
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-/* Number Input Buttons */
-div[data-testid="stNumberInput"] button {
-    background: #f8f9fa !important;
-    color: #1a1a1a !important;
-    border: 1px solid #d0d5dd !important;
-    border-radius: 4px !important;
-    padding: 4px 8px !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    min-width: 30px !important;
-    min-height: 30px !important;
+/* ============================================= */
+/* Slider Styling - Dark Blue */
+/* ============================================= */
+div[data-baseweb="slider"] {
+    margin-top: 5px;
 }
 
-div[data-testid="stNumberInput"] button:hover {
-    background: #e9ecef !important;
-    border-color: #b0b5bd !important;
-    color: #1a1a1a !important;
-}
-
-/* Slider */
 div[data-baseweb="slider"] div[role="slider"] {
-    background: #6c757d !important;
+    background: #1A237E !important;
+    width: 18px !important;
+    height: 18px !important;
+    border: 2px solid white !important;
+    box-shadow: 0 2px 6px rgba(26, 35, 126, 0.3) !important;
 }
 
 div[data-baseweb="slider"] div[data-testid="stSliderTrack"] {
-    background: #e9ecef !important;
+    background: #e0e0e0 !important;
+    height: 6px !important;
+    border-radius: 3px !important;
+}
+
+div[data-baseweb="slider"] div[data-testid="stSliderTrack"] > div {
+    background: #1A237E !important;
+}
+
+/* ============================================= */
+/* Number Input - No Box Around +/- Buttons */
+/* ============================================= */
+div[data-testid="stNumberInput"] {
+    position: relative;
+}
+
+div[data-testid="stNumberInput"] button {
+    background: transparent !important;
+    color: #1A237E !important;
+    border: none !important;
+    border-radius: 4px !important;
+    padding: 4px 8px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease;
+}
+
+div[data-testid="stNumberInput"] button:hover {
+    background: rgba(26, 35, 126, 0.08) !important;
+    color: #1A237E !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+div[data-testid="stNumberInput"] button:active {
+    background: rgba(26, 35, 126, 0.15) !important;
+    transform: scale(0.95);
+}
+
+div[data-testid="stNumberInput"] button:focus {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Remove the box around number input */
+div[data-testid="stNumberInput"] div[data-baseweb="input"] {
+    border: 1px solid #d0d5dd !important;
+    border-radius: 8px !important;
+    background: white !important;
+}
+
+div[data-testid="stNumberInput"] div[data-baseweb="input"]:focus-within {
+    border-color: #1A237E !important;
+    box-shadow: 0 0 0 2px rgba(26, 35, 126, 0.1) !important;
 }
 
 /* File Uploader */
@@ -203,7 +251,6 @@ div[data-testid="stDownloadButton"] button:hover {
 /* BMI Calculator Specific Styles */
 /* ============================================= */
 
-/* BMI Result Box */
 .bmi-result-box {
     background: white;
     border-radius: 16px;
@@ -232,7 +279,6 @@ div[data-testid="stDownloadButton"] button:hover {
     color: #555;
 }
 
-/* BMI Scale Bar */
 .bmi-scale-container {
     background: white;
     border-radius: 16px;
@@ -278,7 +324,6 @@ div[data-testid="stDownloadButton"] button:hover {
     flex: 1;
 }
 
-/* BMI Info Grid */
 .bmi-info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -309,7 +354,6 @@ div[data-testid="stDownloadButton"] button:hover {
     margin-top: 4px;
 }
 
-/* Color-coded category items */
 .bmi-category-item {
     display: flex;
     justify-content: space-between;
@@ -499,27 +543,26 @@ def bmi_calculator():
             color = "#4fc3f7"
             emoji = "📉"
             message = "Consider consulting a nutritionist for a healthy weight gain plan."
-            position = (bmi / 40) * 100  # 0-40 range
+            position = (bmi / 40) * 100
         elif bmi < 25:
             category = "Normal Weight"
             color = "#66bb6a"
             emoji = "✅"
             message = "Great job! Maintain your healthy lifestyle."
-            position = ((bmi - 18.5) / (24.9 - 18.5)) * 25 + 25  # 25-50 range
+            position = ((bmi - 18.5) / (24.9 - 18.5)) * 25 + 25
         elif bmi < 30:
             category = "Overweight"
             color = "#ffca28"
             emoji = "⚠️"
             message = "Consider lifestyle changes to reach a healthy weight."
-            position = ((bmi - 25) / (29.9 - 25)) * 25 + 50  # 50-75 range
+            position = ((bmi - 25) / (29.9 - 25)) * 25 + 50
         else:
             category = "Obese"
             color = "#ef5350"
             emoji = "❌"
             message = "Please consult a healthcare professional for guidance."
-            position = min(((bmi - 30) / 10) * 25 + 75, 95)  # 75-95 range
+            position = min(((bmi - 30) / 10) * 25 + 75, 95)
         
-        # Ensure position stays within bounds
         position = max(2, min(98, position))
         
         # BMI Result Display
@@ -570,7 +613,6 @@ def bmi_calculator():
             """, unsafe_allow_html=True)
         
         with col2:
-            # Category breakdown
             categories = [
                 ("Underweight", "< 18.5", bmi < 18.5, "underweight"),
                 ("Normal", "18.5 - 24.9", 18.5 <= bmi < 25, "normal"),
@@ -611,7 +653,6 @@ def bmi_calculator():
             heart disease, and more. Please consult a healthcare professional.
             """)
         
-        # Note
         st.markdown("""
         <div class="bmi-note">
             <strong>📌 Note:</strong> BMI is a screening tool and doesn't account for 
@@ -666,9 +707,21 @@ with tab1:
     
     if manual:
         st.session_state.mode = "manual"
+        # Clear any previous prediction results when switching modes
+        if "prediction" in st.session_state:
+            del st.session_state.prediction
+            del st.session_state.patient
+            del st.session_state.diabetes_prob
+            del st.session_state.healthy_prob
     
     if upload:
         st.session_state.mode = "upload"
+        # Clear any previous prediction results when switching modes
+        if "prediction" in st.session_state:
+            del st.session_state.prediction
+            del st.session_state.patient
+            del st.session_state.diabetes_prob
+            del st.session_state.healthy_prob
     
     # Display mode indicator
     if st.session_state.mode == "manual":
@@ -767,7 +820,15 @@ with tab1:
             with col2:
                 reset = st.form_submit_button("🔄 Reset Form", use_container_width=True)
         
+        # Handle Reset - outside the form
         if reset:
+            # Clear prediction results
+            if "prediction" in st.session_state:
+                del st.session_state.prediction
+                del st.session_state.patient
+                del st.session_state.diabetes_prob
+                del st.session_state.healthy_prob
+            # Reset the form by rerunning
             st.rerun()
         
         if predict:
