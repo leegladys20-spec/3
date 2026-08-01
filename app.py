@@ -37,12 +37,12 @@ def load_model():
 model, medians = load_model()
 
 # =====================================================
-# Custom CSS with Normal Buttons
+# Custom CSS with Normal Buttons & BMI Styling
 # =====================================================
 st.markdown("""
 <style>
 .stApp {
-    background: #EEF4FF;
+    background: #f5f7fa;
 }
 
 footer {
@@ -53,6 +53,7 @@ header {
     visibility: hidden;
 }
 
+/* Tabs */
 .stTabs [data-baseweb="tab-list"] {
     gap: 30px;
 }
@@ -63,6 +64,7 @@ header {
     color: #1a237e;
 }
 
+/* Main Title */
 .main-title {
     text-align: center;
     color: #1A237E;
@@ -98,7 +100,7 @@ header {
     font-size: 17px;
 }
 
-/* Normal Button Styles - No Dark Blue */
+/* Normal Button Styles */
 div.stButton > button {
     width: 100%;
     background: #f0f2f6;
@@ -123,7 +125,7 @@ div.stButton > button:active {
     transform: translateY(0px);
 }
 
-/* Form Button - Normal Style */
+/* Form Button */
 div.stForm button {
     background: #f0f2f6;
     color: #1a1a1a;
@@ -143,27 +145,7 @@ div.stForm button:hover {
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-/* Primary Action Button - Slightly different for primary actions */
-div.stButton > button.primary {
-    background: #1A237E;
-    color: white;
-    border: none;
-}
-
-div.stButton > button.primary:hover {
-    background: #283593;
-    color: white;
-}
-
-/* Metrics */
-[data-testid="metric-container"] {
-    background: white;
-    border-radius: 12px;
-    padding: 15px;
-    box-shadow: 0px 3px 10px rgba(0,0,0,.08);
-}
-
-/* Number Input Buttons - Increment/Decrement */
+/* Number Input Buttons */
 div[data-testid="stNumberInput"] button {
     background: #f8f9fa !important;
     color: #1a1a1a !important;
@@ -182,15 +164,7 @@ div[data-testid="stNumberInput"] button:hover {
     color: #1a1a1a !important;
 }
 
-div[data-testid="stNumberInput"] button:active {
-    background: #dee2e6 !important;
-}
-
-/* Slider - Normal styling */
-div[data-baseweb="slider"] {
-    margin-top: 5px;
-}
-
+/* Slider */
 div[data-baseweb="slider"] div[role="slider"] {
     background: #6c757d !important;
 }
@@ -223,6 +197,162 @@ div[data-testid="stDownloadButton"] button {
 div[data-testid="stDownloadButton"] button:hover {
     background: #e4e7ec !important;
     border-color: #b0b5bd !important;
+}
+
+/* ============================================= */
+/* BMI Calculator Specific Styles */
+/* ============================================= */
+
+/* BMI Result Box */
+.bmi-result-box {
+    background: white;
+    border-radius: 16px;
+    padding: 30px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+}
+
+.bmi-value-large {
+    font-size: 56px;
+    font-weight: 800;
+    color: #1a1a1a;
+    line-height: 1;
+    margin: 10px 0 5px 0;
+}
+
+.bmi-category {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.bmi-message {
+    font-size: 16px;
+    color: #555;
+}
+
+/* BMI Scale Bar */
+.bmi-scale-container {
+    background: white;
+    border-radius: 16px;
+    padding: 25px 30px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin: 20px 0;
+}
+
+.bmi-scale-bar {
+    position: relative;
+    height: 30px;
+    border-radius: 15px;
+    background: linear-gradient(to right, #4fc3f7, #81c784, #fff176, #ff8a65, #ef5350);
+    margin: 20px 0 30px 0;
+    overflow: visible;
+}
+
+.bmi-marker {
+    position: absolute;
+    top: -12px;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 28px;
+    background: #1a237e;
+    border: 3px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    z-index: 10;
+    transition: left 0.5s ease;
+}
+
+.bmi-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #555;
+    padding: 0 5px;
+    margin-top: 5px;
+}
+
+.bmi-labels span {
+    text-align: center;
+    flex: 1;
+}
+
+/* BMI Info Grid */
+.bmi-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.bmi-info-item {
+    background: white;
+    padding: 18px 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border-left: 4px solid #1a237e;
+}
+
+.bmi-info-item .label {
+    font-size: 13px;
+    color: #888;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.bmi-info-item .value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-top: 4px;
+}
+
+/* Color-coded category items */
+.bmi-category-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.bmi-category-item .range {
+    color: #666;
+    font-size: 13px;
+}
+
+.bmi-category-item.active {
+    background: #e8eaf6;
+    font-weight: 600;
+    border-left: 4px solid #1a237e;
+}
+
+.bmi-category-item.underweight { border-left: 4px solid #4fc3f7; }
+.bmi-category-item.normal { border-left: 4px solid #81c784; }
+.bmi-category-item.overweight { border-left: 4px solid #fff176; }
+.bmi-category-item.obese { border-left: 4px solid #ef5350; }
+
+.bmi-note {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #666;
+    margin-top: 20px;
+    border-left: 4px solid #1a237e;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .bmi-info-grid {
+        grid-template-columns: 1fr;
+    }
+    .bmi-value-large {
+        font-size: 40px;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -321,20 +451,16 @@ def display_recommendation(prediction):
         """)
 
 # =====================================================
-# Navigation
+# BMI Calculator Component
 # =====================================================
-tab1, tab2 = st.tabs([
-    "🩺 Diabetes Prediction",
-    "⚖️ BMI Calculator"
-])
-
-# =====================================================
-# BMI Calculator
-# =====================================================
-with tab2:
-    st.title("⚖️ BMI Calculator")
+def bmi_calculator():
+    """BMI Calculator with modern UI"""
     
-    col1, col2 = st.columns(2)
+    st.markdown("<h1 style='text-align: center; color: #1A237E;'>⚖️ BMI Calculator</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #555; margin-bottom: 30px;'>Calculate your Body Mass Index and assess your health status</p>", unsafe_allow_html=True)
+    
+    # Input columns
+    col1, col2, col3 = st.columns([1, 1, 1])
     
     with col1:
         weight = st.number_input(
@@ -342,7 +468,8 @@ with tab2:
             min_value=20.0,
             max_value=250.0,
             value=70.0,
-            step=0.1
+            step=0.5,
+            help="Enter your weight in kilograms"
         )
     
     with col2:
@@ -351,25 +478,164 @@ with tab2:
             min_value=0.50,
             max_value=2.50,
             value=1.70,
-            step=0.01
+            step=0.01,
+            help="Enter your height in meters"
         )
     
-    if st.button("Calculate BMI", use_container_width=True):
-        bmi = weight / (height ** 2)
+    with col3:
+        if st.button("📊 Calculate BMI", use_container_width=True):
+            bmi = weight / (height ** 2)
+            st.session_state.bmi_result = bmi
+            st.session_state.bmi_calculated = True
+            st.rerun()
+    
+    # Display results if calculated
+    if "bmi_calculated" in st.session_state and st.session_state.bmi_calculated:
+        bmi = st.session_state.bmi_result
         
-        st.metric("BMI", f"{bmi:.2f}")
+        # Determine category
+        if bmi < 18.5:
+            category = "Underweight"
+            color = "#4fc3f7"
+            emoji = "📉"
+            message = "Consider consulting a nutritionist for a healthy weight gain plan."
+            position = (bmi / 40) * 100  # 0-40 range
+        elif bmi < 25:
+            category = "Normal Weight"
+            color = "#66bb6a"
+            emoji = "✅"
+            message = "Great job! Maintain your healthy lifestyle."
+            position = ((bmi - 18.5) / (24.9 - 18.5)) * 25 + 25  # 25-50 range
+        elif bmi < 30:
+            category = "Overweight"
+            color = "#ffca28"
+            emoji = "⚠️"
+            message = "Consider lifestyle changes to reach a healthy weight."
+            position = ((bmi - 25) / (29.9 - 25)) * 25 + 50  # 50-75 range
+        else:
+            category = "Obese"
+            color = "#ef5350"
+            emoji = "❌"
+            message = "Please consult a healthcare professional for guidance."
+            position = min(((bmi - 30) / 10) * 25 + 75, 95)  # 75-95 range
+        
+        # Ensure position stays within bounds
+        position = max(2, min(98, position))
+        
+        # BMI Result Display
+        st.markdown(f"""
+        <div class="bmi-result-box">
+            <div style="font-size: 16px; color: #888; font-weight: 500;">Your BMI</div>
+            <div class="bmi-value-large">{bmi:.1f}</div>
+            <div class="bmi-category" style="color: {color};">{emoji} {category}</div>
+            <div class="bmi-message">{message}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # BMI Scale Bar
+        st.markdown("""
+        <div class="bmi-scale-container">
+            <div style="text-align: center; font-weight: 600; font-size: 18px; margin-bottom: 10px;">
+                BMI Scale
+            </div>
+            <div class="bmi-scale-bar">
+                <div class="bmi-marker" style="left: {:.1f}%;"></div>
+            </div>
+            <div class="bmi-labels">
+                <span style="color: #4fc3f7;">Underweight</span>
+                <span style="color: #81c784;">Normal</span>
+                <span style="color: #fff176;">Overweight</span>
+                <span style="color: #ef5350;">Obese</span>
+            </div>
+        </div>
+        """.format(position), unsafe_allow_html=True)
+        
+        # Detailed Information
+        st.markdown("### 📋 Detailed BMI Information")
+        
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.markdown(f"""
+            <div class="bmi-info-grid">
+                <div class="bmi-info-item">
+                    <div class="label">Your BMI</div>
+                    <div class="value">{bmi:.1f}</div>
+                </div>
+                <div class="bmi-info-item" style="border-left-color: {color};">
+                    <div class="label">Category</div>
+                    <div class="value" style="color: {color};">{category}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            # Category breakdown
+            categories = [
+                ("Underweight", "< 18.5", bmi < 18.5, "underweight"),
+                ("Normal", "18.5 - 24.9", 18.5 <= bmi < 25, "normal"),
+                ("Overweight", "25 - 29.9", 25 <= bmi < 30, "overweight"),
+                ("Obese", ">= 30", bmi >= 30, "obese")
+            ]
+            
+            for name, range_text, active, class_name in categories:
+                active_class = "active" if active else ""
+                st.markdown(f"""
+                <div class="bmi-category-item {class_name} {active_class}">
+                    <span>{name}</span>
+                    <span class="range">{range_text}</span>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Health Implications
+        st.markdown("### 💡 Health Implications")
         
         if bmi < 18.5:
-            st.info("📉 Underweight - Consider consulting a nutritionist")
+            st.info("""
+            **Underweight (< 18.5):** May indicate malnutrition, eating disorders, 
+            or other health issues. Consider consulting a healthcare provider.
+            """)
         elif bmi < 25:
-            st.success("✅ Normal Weight - Keep up the good work!")
+            st.success("""
+            **Normal (18.5 - 24.9):** Healthy weight range for most adults. 
+            Keep up the good work with a balanced diet and regular exercise.
+            """)
         elif bmi < 30:
-            st.warning("⚠️ Overweight - Consider lifestyle changes")
+            st.warning("""
+            **Overweight (25 - 29.9):** Increased risk of health problems. 
+            Consider adopting healthier eating habits and increasing physical activity.
+            """)
         else:
-            st.error("❌ Obese - Please consult a healthcare professional")
+            st.error("""
+            **Obese (>= 30):** High risk of health problems including diabetes, 
+            heart disease, and more. Please consult a healthcare professional.
+            """)
+        
+        # Note
+        st.markdown("""
+        <div class="bmi-note">
+            <strong>📌 Note:</strong> BMI is a screening tool and doesn't account for 
+            muscle mass, bone density, or overall body composition. It should be used 
+            as a general guideline, not a definitive diagnostic tool.
+        </div>
+        """, unsafe_allow_html=True)
 
 # =====================================================
-# Diabetes Prediction
+# Navigation
+# =====================================================
+tab1, tab2 = st.tabs([
+    "🩺 Diabetes Prediction",
+    "⚖️ BMI Calculator"
+])
+
+# =====================================================
+# BMI Calculator Tab
+# =====================================================
+with tab2:
+    bmi_calculator()
+
+# =====================================================
+# Diabetes Prediction Tab
 # =====================================================
 with tab1:
     st.markdown(
