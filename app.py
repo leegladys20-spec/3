@@ -6,6 +6,8 @@ import os
 import io
 from datetime import datetime
 import json
+import uuid
+from pathlib import Path
 
 # =====================================================
 # Page Configuration
@@ -28,7 +30,18 @@ def load_model():
         with open("imputer.pkl", "rb") as f:
             medians = pickle.load(f)
         
-        return model, medians
+        # Handle different imputer formats
+        if isinstance(medians, dict):
+            median_dict = medians
+        else:
+            # If it's a SimpleImputer object
+            try:
+                columns = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
+                median_dict = dict(zip(columns, medians.statistics_))
+            except:
+                median_dict = {}
+        
+        return model, median_dict
     except FileNotFoundError as e:
         st.error(f"Model file not found: {e}")
         st.stop()
@@ -151,10 +164,10 @@ div.stForm button:hover {
 /* BMI Calculator - Bigger Inputs */
 /* ============================================= */
 .bmi-input-container {
-    background: white;
+    background: transparent;
     border-radius: 16px;
-    padding: 30px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    padding: 0px;
+    box-shadow: none;
     margin-bottom: 20px;
 }
 
@@ -485,33 +498,6 @@ div[data-testid="stDownloadButton"] button:hover {
     line-height: 1.6;
 }
 
-.stats-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin: 30px 0;
-}
-
-.stat-box {
-    background: white;
-    padding: 25px;
-    border-radius: 16px;
-    text-align: center;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-}
-
-.stat-number {
-    font-size: 36px;
-    font-weight: 800;
-    color: #1A237E;
-}
-
-.stat-label {
-    color: #666;
-    font-size: 14px;
-    margin-top: 5px;
-}
-
 /* History Page Styles */
 .history-card {
     background: white;
@@ -532,6 +518,35 @@ div[data-testid="stDownloadButton"] button:hover {
     font-weight: 600;
 }
 
+/* Error Box */
+.error-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px 0;
+}
+
+.error-box .error-title {
+    color: #dc2626;
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.error-box .error-message {
+    color: #991b1b;
+    margin-bottom: 15px;
+    white-space: pre-line;
+}
+
+.error-box .error-solution {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .bmi-info-grid {
@@ -544,9 +559,6 @@ div[data-testid="stDownloadButton"] button:hover {
         font-size: 18px !important;
         height: 55px !important;
         padding: 15px !important;
-    }
-    .stats-container {
-        grid-template-columns: 1fr 1fr;
     }
 }
 </style>
@@ -562,14 +574,14 @@ def validate_required_fields(glucose, blood_pressure, bmi, age, dpf, skin, insul
     if pregnancies < 0 or pregnancies > 20:
         errors.append("Pregnancies must be between 0 and 20.")
     
-    if glucose <= 0 or glucose > 300:
+    if glucose <= 0 or glucose > 300:  # Reject 0
         errors.append("Glucose must be between 1 and 300 mg/dL.")
     
-    if blood_pressure <= 0 or blood_pressure > 200:
+    if blood_pressure <= 0 or blood_pressure > 200:  # Reject 0
         errors.append("Blood Pressure must be between 1 and 200 mmHg.")
     
-    if skin < 0.5 or skin > 4.0:
-        errors.append("Skin Thickness must be between 0.5 and 4.0 mm.")
+    if skin <= 0 or skin > 99:  # Reject 0
+        errors.append("Skin Thickness must be between 1 and 99 mm.")
     
     if insulin < 0 or insulin > 900:
         errors.append("Insulin must be between 0 and 900 mu U/ml.")
@@ -586,7 +598,7 @@ def validate_required_fields(glucose, blood_pressure, bmi, age, dpf, skin, insul
     return errors
 
 def replace_zero_values(df, columns):
-    """Replace zero values with median values"""
+    """Replace zero values with median values (for manual input only)"""
     for col in columns:
         if col in df.columns:
             df[col] = df[col].replace(0, medians.get(col, 0))
@@ -594,6 +606,9 @@ def replace_zero_values(df, columns):
 
 def create_gauge_chart(diabetes_prob):
     """Create a gauge chart for diabetes risk"""
+    if diabetes_prob is None:
+        return None
+    
     fig = go.Figure(
         go.Indicator(
             mode="gauge+number",
@@ -663,22 +678,79 @@ def add_to_history(patient_data, prediction, diabetes_prob):
     if "history" not in st.session_state:
         st.session_state.history = []
     
+    # Convert patient_data to dict if it's a DataFrame
+    if isinstance(patient_data, pd.DataFrame):
+        patient_dict = patient_data.to_dict('records')[0] if not patient_data.empty else {}
+    else:
+        patient_dict = patient_data
+    
     history_entry = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "patient_data": patient_data.to_dict('records')[0] if isinstance(patient_data, pd.DataFrame) else patient_data,
+        "patient_data": patient_dict,
         "prediction": int(prediction),
-        "diabetes_probability": round(diabetes_prob, 2),
-        "risk_level": get_risk_level(diabetes_prob)
+        "diabetes_probability": round(diabetes_prob, 2) if diabetes_prob is not None else None,
+        "risk_level": get_risk_level(diabetes_prob) if diabetes_prob is not None else "Unknown"
     }
     
-    st.session_state.history.insert(0, history_entry)  # Add to beginning
+    st.session_state.history.insert(0, history_entry)
     
     # Keep only last 100 entries
     if len(st.session_state.history) > 100:
         st.session_state.history = st.session_state.history[:100]
+    
+    # Save to CSV for persistence
+    save_history_to_csv()
+
+def save_history_to_csv():
+    """Save history to CSV file for persistence"""
+    try:
+        if "history" in st.session_state and st.session_state.history:
+            export_data = []
+            for entry in st.session_state.history:
+                row = {
+                    "Timestamp": entry["timestamp"],
+                    "Prediction": "Diabetes" if entry["prediction"] == 1 else "No Diabetes",
+                    "Diabetes_Probability": entry.get("diabetes_probability", 0),
+                    "Risk_Level": entry.get("risk_level", "Unknown")
+                }
+                patient_data = entry.get("patient_data", {})
+                for key, value in patient_data.items():
+                    row[key] = value
+                export_data.append(row)
+            
+            df_export = pd.DataFrame(export_data)
+            df_export.to_csv("history.csv", index=False)
+    except:
+        pass
+
+def load_history_from_csv():
+    """Load history from CSV file"""
+    try:
+        if Path("history.csv").exists():
+            df = pd.read_csv("history.csv")
+            history = []
+            for _, row in df.iterrows():
+                entry = {
+                    "timestamp": row["Timestamp"],
+                    "prediction": 1 if row["Prediction"] == "Diabetes" else 0,
+                    "diabetes_probability": row["Diabetes_Probability"],
+                    "risk_level": row["Risk_Level"],
+                    "patient_data": {}
+                }
+                exclude_cols = ["Timestamp", "Prediction", "Diabetes_Probability", "Risk_Level"]
+                for col in df.columns:
+                    if col not in exclude_cols:
+                        entry["patient_data"][col] = row[col]
+                history.append(entry)
+            return history
+    except:
+        pass
+    return []
 
 def get_risk_level(diabetes_prob):
     """Get risk level based on probability"""
+    if diabetes_prob is None:
+        return "Unknown"
     if diabetes_prob < 20:
         return "Low"
     elif diabetes_prob < 40:
@@ -697,12 +769,146 @@ def get_risk_color(risk_level):
         "Mild": "#8BC34A",
         "Moderate": "#FFC107",
         "High": "#FF9800",
-        "Very High": "#F44336"
+        "Very High": "#F44336",
+        "Unknown": "#666"
     }
     return colors.get(risk_level, "#666")
 
+def validate_uploaded_data(df):
+    """Validate uploaded data - strict: no zero values allowed"""
+    errors = []
+    
+    # Check for required columns
+    required_columns = [
+        "Pregnancies", "Glucose", "BloodPressure", 
+        "SkinThickness", "Insulin", "BMI", 
+        "DiabetesPedigreeFunction", "Age"
+    ]
+    
+    missing_cols = [col for col in required_columns if col not in df.columns]
+    if missing_cols:
+        errors.append(f"Missing columns: {', '.join(missing_cols)}")
+        return errors
+    
+    # Check for empty dataframe
+    if df.empty:
+        errors.append("The uploaded file is empty.")
+        return errors
+    
+    # Validate each column - STRICT: No zeros allowed for critical values
+    # Pregnancies: 0-20 (0 is allowed — a patient can genuinely have had none)
+    invalid_preg = df[(df['Pregnancies'] < 0) | (df['Pregnancies'] > 20)]
+    if not invalid_preg.empty:
+        errors.append(f"⚠️ Pregnancies must be between 0 and 20. Found {len(invalid_preg)} invalid rows.")
+    
+    # Glucose: 1-300 (0 is NOT allowed)
+    invalid_glucose = df[(df['Glucose'] <= 0) | (df['Glucose'] > 300)]
+    if not invalid_glucose.empty:
+        errors.append(f"⚠️ Glucose must be between 1 and 300 mg/dL. Found {len(invalid_glucose)} invalid rows with 0 or negative values.")
+    
+    # BloodPressure: 1-200 (0 is NOT allowed)
+    invalid_bp = df[(df['BloodPressure'] <= 0) | (df['BloodPressure'] > 200)]
+    if not invalid_bp.empty:
+        errors.append(f"⚠️ Blood Pressure must be between 1 and 200 mmHg. Found {len(invalid_bp)} invalid rows with 0 or negative values.")
+    
+    # SkinThickness: 1-99 (0 is NOT allowed)
+    invalid_skin = df[(df['SkinThickness'] <= 0) | (df['SkinThickness'] > 99)]
+    if not invalid_skin.empty:
+        errors.append(f"⚠️ Skin Thickness must be between 1 and 99 mm. Found {len(invalid_skin)} invalid rows with 0 or negative values.")
+    
+    # Insulin: 1-900 (0 is NOT allowed — treated as missing, same as Glucose/BP/Skin/BMI)
+    invalid_insulin = df[(df['Insulin'] <= 0) | (df['Insulin'] > 900)]
+    if not invalid_insulin.empty:
+        errors.append(f"⚠️ Insulin must be between 1 and 900 mu U/ml. Found {len(invalid_insulin)} invalid rows with 0 or negative values.")
+    
+    # BMI: 0.1-100
+    invalid_bmi = df[(df['BMI'] <= 0) | (df['BMI'] > 100)]
+    if not invalid_bmi.empty:
+        errors.append(f"⚠️ BMI must be between 0.1 and 100 kg/m². Found {len(invalid_bmi)} invalid rows with 0 or negative values.")
+    
+    # DiabetesPedigreeFunction: 0.01-3.0
+    invalid_dpf = df[(df['DiabetesPedigreeFunction'] <= 0) | (df['DiabetesPedigreeFunction'] > 3)]
+    if not invalid_dpf.empty:
+        errors.append(f"⚠️ Diabetes Pedigree Function must be between 0.01 and 3.0. Found {len(invalid_dpf)} invalid rows with 0 or negative values.")
+    
+    # Age: 1-120
+    invalid_age = df[(df['Age'] < 1) | (df['Age'] > 120)]
+    if not invalid_age.empty:
+        errors.append(f"⚠️ Age must be between 1 and 120 years. Found {len(invalid_age)} invalid rows with 0 or negative values.")
+    
+    # Check for null values
+    null_counts = df[required_columns].isnull().sum()
+    null_cols = null_counts[null_counts > 0]
+    if not null_cols.empty:
+        null_messages = [f"{col}: {count} null values" for col, count in null_cols.items()]
+        errors.append(f"⚠️ Null values found: {', '.join(null_messages)}")
+    
+    return errors
+
+def predict_patient_manual(patient_data):
+    """Make prediction for manual input with zero replacement.
+
+    NOTE: The RandomForestClassifier in diabetes_model.pkl was trained on
+    RAW (unscaled) feature values -- tree splits use thresholds on the
+    original scale (e.g. Glucose > 154.5), not standardized values. Do NOT
+    apply StandardScaler here; doing so compresses every input into a
+    narrow range the model's thresholds were never trained against, which
+    silently collapses nearly all predictions into "No Diabetes".
+    """
+    try:
+        # Replace zero values with medians (for manual input)
+        zero_columns = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
+        patient_processed = replace_zero_values(patient_data.copy(), zero_columns)
+        
+        # Feed raw (unscaled) values directly -- matches training
+        prediction = model.predict(patient_processed)[0]
+        
+        # Get probability if available
+        if hasattr(model, "predict_proba"):
+            probability = model.predict_proba(patient_processed)[0]
+            diabetes_prob = probability[1] * 100
+            healthy_prob = probability[0] * 100
+        else:
+            diabetes_prob = None
+            healthy_prob = None
+        
+        return prediction, diabetes_prob, healthy_prob, patient_processed
+    
+    except Exception as e:
+        st.error(f"Error making prediction: {e}")
+        return None, None, None, None
+
+def predict_patient_upload(patient_data):
+    """Make prediction for upload data - NO zero replacement.
+
+    NOTE: See predict_patient_manual -- the model expects raw, unscaled
+    values. Scaling here would reintroduce the model/scaler mismatch.
+    """
+    try:
+        # Feed raw (unscaled) values directly -- matches training
+        patient_values = patient_data.values if hasattr(patient_data, "values") else patient_data
+        prediction = model.predict(patient_values)[0]
+        
+        # Get probability if available
+        if hasattr(model, "predict_proba"):
+            probability = model.predict_proba(patient_values)[0]
+            diabetes_prob = probability[1] * 100
+            healthy_prob = probability[0] * 100
+        else:
+            diabetes_prob = None
+            healthy_prob = None
+        
+        # Flatten raw values for debug display
+        raw_values = list(patient_values[0]) if hasattr(patient_values, "__getitem__") else None
+        
+        return prediction, diabetes_prob, healthy_prob, raw_values
+    
+    except Exception as e:
+        st.error(f"Error making prediction: {e}")
+        return None, None, None, None
+
 # =====================================================
-# BMI Calculator Component - Redesigned
+# BMI Calculator Component
 # =====================================================
 def bmi_calculator():
     """BMI Calculator with bigger inputs and full-width layout"""
@@ -710,7 +916,7 @@ def bmi_calculator():
     st.markdown("<h1 style='text-align: center; color: #1A237E;'>⚖️ BMI Calculator</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #555; margin-bottom: 30px;'>Calculate your Body Mass Index and assess your health status</p>", unsafe_allow_html=True)
     
-    # Input Container - Full Width with bigger inputs
+    # Input Container - Full Width with bigger inputs (removed white box)
     st.markdown('<div class="bmi-input-container">', unsafe_allow_html=True)
     
     # Weight and Height in two columns
@@ -887,49 +1093,6 @@ def home_page():
         unsafe_allow_html=True
     )
     
-    # Stats Section
-    st.markdown("### 📊 System Overview")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.markdown("""
-        <div class="stat-box">
-            <div class="stat-number">98%</div>
-            <div class="stat-label">Model Accuracy</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="stat-box">
-            <div class="stat-number">8</div>
-            <div class="stat-label">Health Parameters</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        # Count total predictions
-        total_predictions = len(st.session_state.get("history", []))
-        st.markdown(f"""
-        <div class="stat-box">
-            <div class="stat-number">{total_predictions}</div>
-            <div class="stat-label">Total Predictions</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        # Count high risk predictions
-        high_risk = sum(1 for h in st.session_state.get("history", []) if h.get("risk_level") in ["High", "Very High"])
-        st.markdown(f"""
-        <div class="stat-box">
-            <div class="stat-number">{high_risk}</div>
-            <div class="stat-label">High Risk Cases</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
     # Features Section
     st.markdown("### 🚀 Features")
     
@@ -941,7 +1104,7 @@ def home_page():
             <div class="feature-icon">🩺</div>
             <div class="feature-title">Diabetes Prediction</div>
             <div class="feature-desc">
-                AI-powered prediction using 8 health parameters with 98% accuracy.
+                AI-powered prediction using 8 health parameters.
                 Get instant risk assessment and personalized recommendations.
             </div>
         </div>
@@ -981,7 +1144,7 @@ def home_page():
     with col1:
         st.markdown("""
         **1️⃣ Enter Data**
-        - Manual input or CSV upload
+        - Manual input or file upload
         - 8 health parameters required
         - Age, Glucose, BMI, etc.
         """)
@@ -990,8 +1153,8 @@ def home_page():
         st.markdown("""
         **2️⃣ AI Analysis**
         - Machine learning prediction
-        - 98% accuracy rate
         - Instant risk assessment
+        - Probability scoring
         """)
     
     with col3:
@@ -1001,23 +1164,6 @@ def home_page():
         - Visual gauge chart
         - Personalized recommendations
         """)
-    
-    st.markdown("---")
-    
-    # Quick Start
-    st.markdown("### 🎯 Quick Start")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("🩺 Make a Prediction", use_container_width=True):
-            st.session_state.active_tab = "Diabetes Prediction"
-            st.rerun()
-    
-    with col2:
-        if st.button("⚖️ Calculate BMI", use_container_width=True):
-            st.session_state.active_tab = "BMI Calculator"
-            st.rerun()
 
 # =====================================================
 # History Page
@@ -1035,10 +1181,6 @@ def history_page():
     
     if "history" not in st.session_state or not st.session_state.history:
         st.info("📭 No predictions in history yet. Start by making a prediction!")
-        
-        if st.button("🩺 Go to Prediction", use_container_width=True):
-            st.session_state.active_tab = "Diabetes Prediction"
-            st.rerun()
         return
     
     # Summary statistics
@@ -1077,25 +1219,153 @@ def history_page():
             ["Newest First", "Oldest First", "Highest Risk", "Lowest Risk"]
         )
     
-    # Filter and sort history
+    # Filter and sort history with proper datetime handling
     filtered_history = st.session_state.history.copy()
     
     if risk_filter != "All":
         filtered_history = [h for h in filtered_history if h.get("risk_level") == risk_filter]
     
     if sort_order == "Newest First":
-        filtered_history.sort(key=lambda x: x["timestamp"], reverse=True)
+        filtered_history.sort(key=lambda x: datetime.strptime(x["timestamp"], "%Y-%m-%d %H:%M:%S"), reverse=True)
     elif sort_order == "Oldest First":
-        filtered_history.sort(key=lambda x: x["timestamp"])
+        filtered_history.sort(key=lambda x: datetime.strptime(x["timestamp"], "%Y-%m-%d %H:%M:%S"))
     elif sort_order == "Highest Risk":
-        filtered_history.sort(key=lambda x: x.get("diabetes_probability", 0), reverse=True)
+        filtered_history.sort(key=lambda x: x.get("diabetes_probability", 0) if x.get("diabetes_probability") is not None else -1, reverse=True)
     elif sort_order == "Lowest Risk":
-        filtered_history.sort(key=lambda x: x.get("diabetes_probability", 0))
+        filtered_history.sort(key=lambda x: x.get("diabetes_probability", 0) if x.get("diabetes_probability") is not None else 999)
+    
+    # =====================================================
+    # Diabetic vs Non-Diabetic Pie Chart + Risk Level Breakdown
+    # (dynamic - both follow the filter above)
+    # =====================================================
+    st.markdown("### 📊 Diabetic vs Non-Diabetic Overview")
+    
+    diabetic_count = sum(1 for h in filtered_history if h.get("prediction") == 1)
+    non_diabetic_count = sum(1 for h in filtered_history if h.get("prediction") == 0)
+    
+    if diabetic_count + non_diabetic_count > 0:
+        chart_col1, chart_col2 = st.columns(2)
+        
+        with chart_col1:
+            pie_fig = go.Figure(
+                go.Pie(
+                    labels=["Non-Diabetic", "Diabetic"],
+                    values=[non_diabetic_count, diabetic_count],
+                    marker_colors=["#4CAF50", "#F44336"],
+                    hole=0.45,
+                    textinfo="label+percent",
+                    textfont=dict(size=13)
+                )
+            )
+            pie_fig.update_layout(
+                height=380,
+                margin=dict(l=20, r=20, t=40, b=20),
+                title=dict(text="Prediction Outcome", x=0.5, xanchor="center"),
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+                paper_bgcolor="white"
+            )
+            st.plotly_chart(pie_fig, use_container_width=True, key="history_pie_chart")
+        
+        with chart_col2:
+            # Risk Level Breakdown - shows severity distribution, not just binary outcome
+            risk_order = ["Low", "Mild", "Moderate", "High", "Very High"]
+            risk_colors_map = {
+                "Low": "#4CAF50", "Mild": "#8BC34A", "Moderate": "#FFC107",
+                "High": "#FF9800", "Very High": "#F44336"
+            }
+            risk_counts = {r: sum(1 for h in filtered_history if h.get("risk_level") == r) for r in risk_order}
+            risk_counts = {r: c for r, c in risk_counts.items() if c > 0}
+            
+            if risk_counts:
+                risk_fig = go.Figure(
+                    go.Pie(
+                        labels=list(risk_counts.keys()),
+                        values=list(risk_counts.values()),
+                        marker_colors=[risk_colors_map[r] for r in risk_counts.keys()],
+                        hole=0.45,
+                        textinfo="label+percent",
+                        textfont=dict(size=13)
+                    )
+                )
+                risk_fig.update_layout(
+                    height=380,
+                    margin=dict(l=20, r=20, t=40, b=20),
+                    title=dict(text="Risk Level Breakdown", x=0.5, xanchor="center"),
+                    showlegend=True,
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+                    paper_bgcolor="white"
+                )
+                st.plotly_chart(risk_fig, use_container_width=True, key="history_risk_pie_chart")
+        
+        st.caption(
+            f"Showing {diabetic_count + non_diabetic_count} record(s) "
+            f"matching the current filter ({risk_filter})."
+        )
+        
+        # =====================================================
+        # Diabetes Probability Trend Over Time
+        # Shows whether risk is climbing, falling, or stable across
+        # successive predictions -- useful for tracking a single
+        # patient over repeated checks, or spotting drift in a batch.
+        # =====================================================
+        st.markdown("### 📈 Diabetes Probability Trend")
+        
+        trend_entries = [
+            h for h in filtered_history if h.get("diabetes_probability") is not None
+        ]
+        trend_entries = sorted(
+            trend_entries,
+            key=lambda x: datetime.strptime(x["timestamp"], "%Y-%m-%d %H:%M:%S")
+        )
+        
+        if len(trend_entries) >= 2:
+            timestamps = [e["timestamp"] for e in trend_entries]
+            probs = [e["diabetes_probability"] for e in trend_entries]
+            point_colors = [get_risk_color(e.get("risk_level", "Unknown")) for e in trend_entries]
+            
+            trend_fig = go.Figure(
+                go.Scatter(
+                    x=timestamps,
+                    y=probs,
+                    mode="lines+markers",
+                    line=dict(color="#1A237E", width=2),
+                    marker=dict(size=9, color=point_colors, line=dict(width=1, color="white")),
+                    hovertemplate="%{x}<br>Diabetes Probability: %{y:.1f}%<extra></extra>"
+                )
+            )
+            trend_fig.add_hline(
+                y=50, line_dash="dot", line_color="#999",
+                annotation_text="50% threshold", annotation_position="top left"
+            )
+            trend_fig.update_layout(
+                height=380,
+                margin=dict(l=20, r=20, t=30, b=60),
+                yaxis_title="Diabetes Probability (%)",
+                xaxis_title="Prediction Timestamp",
+                yaxis=dict(range=[0, 100], gridcolor="#eee"),
+                xaxis=dict(showgrid=False, tickangle=-30),
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                showlegend=False
+            )
+            st.plotly_chart(trend_fig, use_container_width=True, key="history_trend_chart")
+            st.caption(
+                "Marker color reflects risk level at that prediction. "
+                "Useful for spotting whether risk is rising, falling, or stable across repeated checks."
+            )
+        else:
+            st.info("Need at least 2 matching predictions to plot a trend.")
+    else:
+        st.info("No records match the current filter to display in the chart.")
+    
+    st.markdown("---")
     
     # Display history entries
     for entry in filtered_history:
         risk_level = entry.get("risk_level", "Unknown")
         color = get_risk_color(risk_level)
+        diabetes_prob = entry.get("diabetes_probability")
         
         with st.container():
             st.markdown(f"""
@@ -1111,7 +1381,7 @@ def history_page():
                         <br>
                         <span style="font-size: 14px; color: #666;">
                             Risk Level: <strong style="color: {color};">{risk_level}</strong>
-                            | Probability: <strong>{entry.get('diabetes_probability', 0)}%</strong>
+                            {f'| Probability: <strong>{diabetes_prob:.1f}%</strong>' if diabetes_prob is not None else ''}
                         </span>
                     </div>
                     <div style="text-align: right; font-size: 12px; color: #888;">
@@ -1132,6 +1402,8 @@ def history_page():
     with col1:
         if st.button("🗑️ Clear History", use_container_width=True):
             st.session_state.history = []
+            if Path("history.csv").exists():
+                Path("history.csv").unlink()
             st.rerun()
     
     with col2:
@@ -1163,11 +1435,12 @@ def history_page():
             )
 
 # =====================================================
-# Navigation
+# Navigation - Tabs
 # =====================================================
-# Use session state to track active tab
-if "active_tab" not in st.session_state:
-    st.session_state.active_tab = "Home"
+# Load history from CSV on first load
+if "history" not in st.session_state:
+    history = load_history_from_csv()
+    st.session_state.history = history if history else []
 
 # Create tabs
 tab_home, tab_diabetes, tab_bmi, tab_history = st.tabs([
@@ -1220,7 +1493,7 @@ with tab_diabetes:
         manual = st.button("✏️ Manual Input", use_container_width=True)
     
     with col2:
-        upload = st.button("📁 Upload CSV", use_container_width=True)
+        upload = st.button("📁 Upload File", use_container_width=True)
     
     if "mode" not in st.session_state:
         st.session_state.mode = "manual"
@@ -1233,6 +1506,17 @@ with tab_diabetes:
             del st.session_state.patient
             del st.session_state.diabetes_prob
             del st.session_state.healthy_prob
+        # Clear upload error if exists
+        if "upload_error" in st.session_state:
+            del st.session_state.upload_error
+        if "upload_data_error" in st.session_state:
+            del st.session_state.upload_data_error
+        # Reset uploader key
+        if "uploader_key" in st.session_state:
+            st.session_state.uploader_key = str(uuid.uuid4())
+        # Clear uploaded data results
+        if "upload_prediction_done" in st.session_state:
+            del st.session_state.upload_prediction_done
     
     if upload:
         st.session_state.mode = "upload"
@@ -1242,6 +1526,17 @@ with tab_diabetes:
             del st.session_state.patient
             del st.session_state.diabetes_prob
             del st.session_state.healthy_prob
+        # Clear upload error if exists
+        if "upload_error" in st.session_state:
+            del st.session_state.upload_error
+        if "upload_data_error" in st.session_state:
+            del st.session_state.upload_data_error
+        # Set uploader key
+        if "uploader_key" not in st.session_state:
+            st.session_state.uploader_key = str(uuid.uuid4())
+        # Clear uploaded data results
+        if "upload_prediction_done" in st.session_state:
+            del st.session_state.upload_prediction_done
     
     # Display mode indicator
     if st.session_state.mode == "manual":
@@ -1253,7 +1548,7 @@ with tab_diabetes:
     else:
         st.markdown("""
         <div class="info">
-        📁 Currently using <b>CSV Upload</b> mode. Upload a CSV file with patient data.
+        📁 Currently using <b>File Upload</b> mode. Upload a CSV or Excel file with patient data.
         </div>
         """, unsafe_allow_html=True)
     
@@ -1267,11 +1562,11 @@ with tab_diabetes:
                 "pregnancies": 0,
                 "glucose": 0,
                 "blood_pressure": 0,
-                "skin": 0.5,  # Set to minimum valid value
+                "skin": 0,
                 "insulin": 0,
-                "bmi": 0.0,
-                "dpf": 0.0,
-                "age": 0
+                "bmi": 25.0,
+                "dpf": 0.471,
+                "age": 21
             }
         
         with st.form("prediction_form"):
@@ -1291,7 +1586,7 @@ with tab_diabetes:
                     min_value=0,
                     max_value=300,
                     value=st.session_state.form_values["glucose"],
-                    help="Glucose level in blood"
+                    help="Glucose level in blood (1-300 mg/dL)"
                 )
                 
                 blood_pressure = st.number_input(
@@ -1299,16 +1594,16 @@ with tab_diabetes:
                     min_value=0,
                     max_value=200,
                     value=st.session_state.form_values["blood_pressure"],
-                    help="Diastolic blood pressure"
+                    help="Diastolic blood pressure (1-200 mmHg)"
                 )
                 
                 skin = st.number_input(
                     "📏 Skin Thickness (mm)",
-                    min_value=0.5,
-                    max_value=4.0,
+                    min_value=0,
+                    max_value=99,
                     value=st.session_state.form_values["skin"],
-                    step=0.1,
-                    help="Triceps skin fold thickness (0.5 - 4.0 mm)"
+                    step=1,
+                    help="Triceps skin fold thickness (1-99 mm)"
                 )
             
             with right:
@@ -1317,7 +1612,7 @@ with tab_diabetes:
                     min_value=0,
                     max_value=900,
                     value=st.session_state.form_values["insulin"],
-                    help="2-Hour serum insulin"
+                    help="2-Hour serum insulin (0-900)"
                 )
                 
                 bmi = st.number_input(
@@ -1326,7 +1621,7 @@ with tab_diabetes:
                     max_value=100.0,
                     value=st.session_state.form_values["bmi"],
                     step=0.1,
-                    help="Body Mass Index"
+                    help="Body Mass Index (0.1-100)"
                 )
                 
                 dpf = st.number_input(
@@ -1335,7 +1630,7 @@ with tab_diabetes:
                     max_value=3.0,
                     value=st.session_state.form_values["dpf"],
                     step=0.01,
-                    help="Diabetes pedigree function"
+                    help="Diabetes pedigree function (0.01-3.0)"
                 )
                 
                 age = st.number_input(
@@ -1343,7 +1638,7 @@ with tab_diabetes:
                     min_value=0,
                     max_value=120,
                     value=st.session_state.form_values["age"],
-                    help="Age in years"
+                    help="Age in years (1-120)"
                 )
             
             col1, col2 = st.columns(2)
@@ -1354,18 +1649,18 @@ with tab_diabetes:
             with col2:
                 reset = st.form_submit_button("🔄 Reset Form", use_container_width=True)
         
-        # Handle Reset - Reset all form values to defaults
+        # Handle Reset
         if reset:
             # Reset form values in session state
             st.session_state.form_values = {
                 "pregnancies": 0,
                 "glucose": 0,
                 "blood_pressure": 0,
-                "skin": 0.5,  # Reset to minimum valid value
+                "skin": 0,
                 "insulin": 0,
-                "bmi": 0.0,
-                "dpf": 0.0,
-                "age": 0
+                "bmi": 25.0,
+                "dpf": 0.471,
+                "age": 21
             }
             # Clear prediction results
             if "prediction" in st.session_state:
@@ -1373,7 +1668,6 @@ with tab_diabetes:
                 del st.session_state.patient
                 del st.session_state.diabetes_prob
                 del st.session_state.healthy_prob
-            # Rerun to reflect changes
             st.rerun()
         
         if predict:
@@ -1387,6 +1681,25 @@ with tab_diabetes:
                     st.error(f"❌ {error}")
                 st.stop()
             
+            # Check for zero values and show warnings
+            zero_warnings = []
+            if glucose == 0:
+                zero_warnings.append("Glucose is 0. Will be replaced with median value.")
+            if blood_pressure == 0:
+                zero_warnings.append("Blood Pressure is 0. Will be replaced with median value.")
+            if skin == 0:
+                zero_warnings.append("Skin Thickness is 0. Will be replaced with median value.")
+            if insulin == 0:
+                zero_warnings.append("Insulin is 0. Will be replaced with median value.")
+            if bmi == 0:
+                zero_warnings.append("BMI is 0. Will be replaced with median value.")
+            
+            if zero_warnings:
+                st.warning("⚠️ **Zero Values Detected**")
+                for warning in zero_warnings:
+                    st.warning(warning)
+                st.info("ℹ️ Zero values will be replaced with median values from the dataset for prediction.")
+            
             # Create patient dataframe
             patient = pd.DataFrame(
                 [[pregnancies, glucose, blood_pressure, skin, insulin, bmi, dpf, age]],
@@ -1397,18 +1710,10 @@ with tab_diabetes:
                 ]
             )
             
-            # Replace zero values with medians
-            zero_columns = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
-            patient_processed = replace_zero_values(patient.copy(), zero_columns)
-            
             # Make prediction
-            try:
-                prediction = model.predict(patient_processed)[0]
-                probability = model.predict_proba(patient_processed)[0]
-                
-                diabetes_prob = probability[1] * 100
-                healthy_prob = probability[0] * 100
-                
+            prediction, diabetes_prob, healthy_prob, patient_processed = predict_patient_manual(patient)
+            
+            if prediction is not None:
                 st.session_state.prediction = prediction
                 st.session_state.patient = patient
                 st.session_state.diabetes_prob = diabetes_prob
@@ -1428,18 +1733,87 @@ with tab_diabetes:
                 
                 # Add to history
                 add_to_history(patient_processed, prediction, diabetes_prob)
-                
-            except Exception as e:
-                st.error(f"Error making prediction: {e}")
     
     # =====================================================
-    # CSV Upload
+    # FILE UPLOAD (Strict: No zero replacement)
     # =====================================================
     if st.session_state.mode == "upload":
+        # Check if there's an upload error in session state
+        if "upload_error" in st.session_state and st.session_state.upload_error:
+            # Display error with solution options
+            st.markdown(f"""
+            <div class="error-box">
+                <div class="error-title">❌ File Upload Error</div>
+                <div class="error-message">{st.session_state.upload_error}</div>
+                <div class="error-solution">
+                    <strong>💡 How to fix this:</strong><br>
+                    • Make sure your file is in CSV or Excel format (.csv, .xlsx, .xls)<br>
+                    • Check that your file contains the required columns:<br>
+                    <code>Pregnancies, Glucose, BloodPressure, SkinThickness, Insulin, BMI, DiabetesPedigreeFunction, Age</code><br>
+                    • Make sure the file is not empty or corrupted
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Options to resolve the error
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("📁 Upload Again", use_container_width=True):
+                    del st.session_state.upload_error
+                    st.session_state.uploader_key = str(uuid.uuid4())
+                    st.rerun()
+            
+            with col2:
+                if st.button("✏️ Switch to Manual Input", use_container_width=True):
+                    del st.session_state.upload_error
+                    st.session_state.mode = "manual"
+                    st.rerun()
+            
+            st.stop()
+        
+        # Check if there's a data validation error
+        if "upload_data_error" in st.session_state and st.session_state.upload_data_error:
+            # Display error with solution options
+            st.markdown(f"""
+            <div class="error-box">
+                <div class="error-title">❌ Data Validation Error</div>
+                <div class="error-message">{st.session_state.upload_data_error}</div>
+                <div class="error-solution">
+                    <strong>💡 How to fix this:</strong><br>
+                    • Make sure all values are within valid ranges (no zero values allowed)<br>
+                    • Check for missing or null values in your data<br>
+                    • Ensure all required fields are filled correctly<br>
+                    • <strong>Important:</strong> Zero values are not accepted. Please provide valid measurements.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Options to resolve the error
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("📁 Upload New File", use_container_width=True, key="upload_new_file"):
+                    del st.session_state.upload_data_error
+                    st.session_state.uploader_key = str(uuid.uuid4())
+                    st.rerun()
+            
+            with col2:
+                if st.button("✏️ Switch to Manual Input", use_container_width=True, key="switch_to_manual_error"):
+                    del st.session_state.upload_data_error
+                    st.session_state.mode = "manual"
+                    st.rerun()
+            
+            st.stop()
+        
+        # File uploader with unique key
+        uploader_key = st.session_state.get("uploader_key", str(uuid.uuid4()))
+        
         uploaded_file = st.file_uploader(
             "📤 Upload CSV or Excel File",
             type=["csv", "xlsx", "xls"],
-            help="Upload a CSV or Excel file with the required columns."
+            help="Upload a CSV or Excel file with the required columns. Zero values are not accepted.",
+            key=uploader_key
         )
         
         if uploaded_file is not None:
@@ -1466,74 +1840,161 @@ with tab_diabetes:
                 ]
                 
                 if missing_columns:
-                    st.error(f"❌ Missing required columns: {', '.join(missing_columns)}")
+                    st.session_state.upload_error = f"Missing required columns: {', '.join(missing_columns)}"
+                    st.rerun()
                 else:
+                    # Validate data values - STRICT (no zeros)
+                    validation_errors = validate_uploaded_data(df)
+                    
+                    if validation_errors:
+                        # Join errors with line breaks for better display
+                        error_message = "\n".join(validation_errors)
+                        st.session_state.upload_data_error = error_message
+                        st.rerun()
+                    
+                    # If we get here, data is valid
                     st.subheader("📊 Uploaded Data")
                     st.dataframe(df, use_container_width=True)
                     
                     if st.button("🚀 Predict Uploaded Data", use_container_width=True):
                         with st.spinner("Making predictions..."):
-                            zero_columns = [
-                                "Glucose",
-                                "BloodPressure",
-                                "SkinThickness",
-                                "Insulin",
-                                "BMI"
-                            ]
-                            
+                            # Process each row - NO zero replacement
+                            results = []
                             df_processed = df.copy()
-                            df_processed = replace_zero_values(df_processed, zero_columns)
                             
-                            predictions = model.predict(df_processed)
-                            probabilities = model.predict_proba(df_processed)
+                            debug_rows = []
+                            for idx, row in df.iterrows():
+                                patient = pd.DataFrame([row[required_columns]])
+                                prediction, diabetes_prob, healthy_prob, raw_values = predict_patient_upload(patient)
+                                
+                                if prediction is not None:
+                                    results.append({
+                                        "Prediction": prediction,
+                                        "Diabetes_Probability": diabetes_prob if diabetes_prob is not None else 0,
+                                        "Healthy_Probability": healthy_prob if healthy_prob is not None else 0,
+                                        "Risk_Level": get_risk_level(diabetes_prob) if diabetes_prob is not None else "Unknown"
+                                    })
+                                    
+                                    # Add to history
+                                    add_to_history(row.to_dict(), prediction, diabetes_prob)
+                                    
+                                    # Capture debug info: raw feature values actually fed to the model
+                                    debug_entry = {"Row": idx + 1}
+                                    for col in required_columns:
+                                        debug_entry[f"raw_{col}"] = row[col]
+                                    debug_entry["Diabetes_Prob_%"] = round(diabetes_prob, 2) if diabetes_prob is not None else None
+                                    debug_rows.append(debug_entry)
+                                else:
+                                    results.append({
+                                        "Prediction": None,
+                                        "Diabetes_Probability": None,
+                                        "Healthy_Probability": None,
+                                        "Risk_Level": "Error"
+                                    })
                             
-                            df["Prediction"] = predictions
-                            df["Diabetes_Probability"] = (
-                                probabilities[:, 1] * 100
-                            ).round(2)
+                            # Add results to dataframe
+                            result_df = pd.DataFrame(results)
+                            df["Prediction"] = result_df["Prediction"].apply(lambda x: "Diabetes" if x == 1 else "No Diabetes" if x == 0 else "Error")
+                            df["Diabetes_Probability"] = result_df["Diabetes_Probability"]
+                            df["Risk_Level"] = result_df["Risk_Level"]
                             
-                            df["Risk_Level"] = pd.cut(
-                                df["Diabetes_Probability"],
-                                bins=[0, 20, 40, 60, 80, 100],
-                                labels=[
-                                    "Low",
-                                    "Mild",
-                                    "Moderate",
-                                    "High",
-                                    "Very High"
-                                ]
-                            )
+                            # Store in session state for display
+                            st.session_state.upload_prediction_done = True
+                            st.session_state.upload_results_df = df
+                            st.session_state.upload_results = results
+                            st.session_state.upload_original_df = df_processed
+                            st.session_state.upload_debug_rows = debug_rows
                             
-                            # Add to history for each prediction
-                            for idx, row in df_processed.iterrows():
-                                add_to_history(
-                                    row.to_dict(),
-                                    predictions[idx],
-                                    probabilities[idx][1] * 100
-                                )
-                            
-                            st.success("✅ Prediction completed!")
-                            st.dataframe(df, use_container_width=True)
-                            
-                            csv = df.to_csv(index=False)
-                            
-                            st.download_button(
-                                "💾 Download Results",
-                                csv,
-                                "predictions.csv",
-                                "text/csv",
-                                use_container_width=True
-                            )
+                            st.rerun()
             
             except pd.errors.EmptyDataError:
-                st.error("❌ The uploaded file is empty. Please upload a valid file.")
+                st.session_state.upload_error = "The uploaded file is empty. Please upload a valid file."
+                st.rerun()
             except Exception as e:
-                st.error(f"❌ Error reading file: {e}")
+                st.session_state.upload_error = f"Error reading file: {str(e)}"
+                st.rerun()
+        
+        # Display upload prediction results
+        if "upload_prediction_done" in st.session_state and st.session_state.upload_prediction_done:
+            st.markdown("---")
+            st.success("✅ Prediction completed!")
+            
+            # Display results with gauge charts
+            results_df = st.session_state.upload_results_df
+            results = st.session_state.upload_results
+            
+            # Show results table
+            st.dataframe(results_df, use_container_width=True)
+            
+            # =====================================================
+            # Debug panel - shows exactly what values the model saw
+            # =====================================================
+            with st.expander("🔍 Debug: Raw values fed to the model"):
+                st.success(
+                    "**Model input mode:** Raw (unscaled) values — matches how "
+                    "`diabetes_model.pkl` (RandomForestClassifier) was trained. "
+                    "`scaler.pkl` is intentionally not applied here; it was fit "
+                    "for the KNN/SVM experiments during model comparison, not "
+                    "for this tree-based model."
+                )
+                
+                debug_rows = st.session_state.get("upload_debug_rows", [])
+                if debug_rows:
+                    st.markdown("**Raw values per row** (what the model actually saw):")
+                    st.dataframe(pd.DataFrame(debug_rows), use_container_width=True)
+                    st.caption(
+                        "If predictions still look off, sanity-check individual "
+                        "rows against known clinical expectations (e.g. very high "
+                        "Glucose + high BMI should trend toward higher probability)."
+                    )
+            
+            # Show gauge chart for each prediction (show first 3 or all if less)
+            st.subheader("📊 Risk Visualization")
+            
+            num_to_show = min(len(results), 5)  # Show up to 5 charts
+            cols = st.columns(min(num_to_show, 3))
+            
+            for i in range(num_to_show):
+                col_idx = i % 3
+                with cols[col_idx]:
+                    if results[i]["Diabetes_Probability"] is not None:
+                        st.markdown(f"**Patient {i+1}**")
+                        fig = create_gauge_chart(results[i]["Diabetes_Probability"])
+                        if fig:
+                            st.plotly_chart(fig, use_container_width=True, key=f"gauge_upload_{i}")
+                        st.caption(f"Risk Level: {results[i]['Risk_Level']}")
+            
+            # Download button
+            csv = results_df.to_csv(index=False)
+            st.download_button(
+                "💾 Download Results",
+                csv,
+                "predictions.csv",
+                "text/csv",
+                use_container_width=True
+            )
+            
+            # Reset button under download
+            if st.button("🔄 Reset Upload & Start Over", use_container_width=True, key="reset_upload_after_results"):
+                if "prediction" in st.session_state:
+                    del st.session_state.prediction
+                if "upload_prediction_done" in st.session_state:
+                    del st.session_state.upload_prediction_done
+                if "upload_results_df" in st.session_state:
+                    del st.session_state.upload_results_df
+                if "upload_results" in st.session_state:
+                    del st.session_state.upload_results
+                if "upload_original_df" in st.session_state:
+                    del st.session_state.upload_original_df
+                if "upload_debug_rows" in st.session_state:
+                    del st.session_state.upload_debug_rows
+                st.session_state.uploader_key = str(uuid.uuid4())
+                st.rerun()
     
     # =====================================================
-    # SHOW PREDICTION RESULT
+    # SHOW MANUAL PREDICTION RESULT
     # =====================================================
-    if "prediction" in st.session_state:
+    if "prediction" in st.session_state and st.session_state.mode == "manual":
         st.markdown("---")
         
         prediction = st.session_state.prediction
@@ -1552,22 +2013,29 @@ with tab_diabetes:
             else:
                 st.success("🟢 **No Diabetes Detected**")
             
-            col_a, col_b = st.columns(2)
-            
-            with col_a:
-                st.metric("Diabetes Probability", f"{diabetes_prob:.2f}%")
-            with col_b:
-                st.metric("Healthy Probability", f"{healthy_prob:.2f}%")
-            
-            # Risk Level
-            risk_level = get_risk_level(diabetes_prob)
-            color = get_risk_color(risk_level)
-            st.markdown(f"**Risk Level:** <span style='color: {color}; font-weight: bold;'>{risk_level}</span>", unsafe_allow_html=True)
+            if diabetes_prob is not None:
+                col_a, col_b = st.columns(2)
+                
+                with col_a:
+                    st.metric("Diabetes Probability", f"{diabetes_prob:.2f}%")
+                with col_b:
+                    st.metric("Healthy Probability", f"{healthy_prob:.2f}%")
+                
+                # Risk Level
+                risk_level = get_risk_level(diabetes_prob)
+                color = get_risk_color(risk_level)
+                st.markdown(f"**Risk Level:** <span style='color: {color}; font-weight: bold;'>{risk_level}</span>", unsafe_allow_html=True)
+            else:
+                st.info("ℹ️ Probability scores not available for this model.")
         
         # Gauge Chart
         with col2:
-            fig = create_gauge_chart(diabetes_prob)
-            st.plotly_chart(fig, use_container_width=True)
+            if diabetes_prob is not None:
+                fig = create_gauge_chart(diabetes_prob)
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("ℹ️ Gauge chart not available for this model.")
         
         st.markdown("---")
         
