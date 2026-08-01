@@ -930,15 +930,15 @@ with tab1:
             errors = []
             
             if glucose <= 0:
-                errors.append("Glucose must be greater than 0.")
+                errors.append("Glucose must be between 1 and 300 mg/dL.")
             if blood_pressure <= 0:
-                errors.append("Blood Pressure must be greater than 0.")
+                errors.append("Blood Pressure must be between 1 and 200 mmHg.")
             if bmi <= 0:
-                errors.append("BMI must be greater than 0.")
+                errors.append("BMI must be between 0.1 and 100 kg/m².")
             if age <= 0:
-                errors.append("Age must be greater than 0.")
+                errors.append("Age must be between 1 and 120 years.")
             if dpf <= 0:
-                errors.append("Diabetes Pedigree Function must be greater than 0.")
+                errors.append("Diabetes Pedigree Function must be between 0.01 and 3.0.")
             
             if errors:
                 for error in errors:
