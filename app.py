@@ -181,7 +181,6 @@ div.stForm button:hover {
     margin-bottom: 8px !important;
 }
 
-/* BMI Calculate Button - Full Width Below Inputs */
 .bmi-calculate-btn {
     margin-top: 20px;
 }
@@ -812,6 +811,19 @@ with tab1:
     # MANUAL INPUT
     # =====================================================
     if st.session_state.mode == "manual":
+        # Initialize session state for form values if not exists
+        if "form_values" not in st.session_state:
+            st.session_state.form_values = {
+                "pregnancies": 0,
+                "glucose": 0,
+                "blood_pressure": 0,
+                "skin": 0,
+                "insulin": 0,
+                "bmi": 0.0,
+                "dpf": 0.0,
+                "age": 0
+            }
+        
         with st.form("prediction_form"):
             left, right = st.columns(2)
             
@@ -820,7 +832,7 @@ with tab1:
                     "👶 Pregnancies",
                     0,
                     20,
-                    1,
+                    value=st.session_state.form_values["pregnancies"],
                     help="Number of pregnancies"
                 )
                 
@@ -828,7 +840,7 @@ with tab1:
                     "🩸 Glucose (mg/dL)",
                     min_value=0,
                     max_value=300,
-                    value=120,
+                    value=st.session_state.form_values["glucose"],
                     help="Glucose level in blood"
                 )
                 
@@ -836,7 +848,7 @@ with tab1:
                     "❤️ Blood Pressure (mmHg)",
                     min_value=0,
                     max_value=200,
-                    value=70,
+                    value=st.session_state.form_values["blood_pressure"],
                     help="Diastolic blood pressure"
                 )
                 
@@ -844,7 +856,7 @@ with tab1:
                     "📏 Skin Thickness (mm)",
                     min_value=0,
                     max_value=100,
-                    value=20,
+                    value=st.session_state.form_values["skin"],
                     help="Triceps skin fold thickness"
                 )
             
@@ -853,7 +865,7 @@ with tab1:
                     "💉 Insulin (mu U/ml)",
                     min_value=0,
                     max_value=900,
-                    value=80,
+                    value=st.session_state.form_values["insulin"],
                     help="2-Hour serum insulin"
                 )
                 
@@ -861,7 +873,7 @@ with tab1:
                     "⚖️ BMI",
                     min_value=0.0,
                     max_value=70.0,
-                    value=25.0,
+                    value=st.session_state.form_values["bmi"],
                     step=0.1,
                     help="Body Mass Index"
                 )
@@ -870,16 +882,16 @@ with tab1:
                     "📊 Diabetes Pedigree Function",
                     min_value=0.0,
                     max_value=3.0,
-                    value=0.50,
+                    value=st.session_state.form_values["dpf"],
                     step=0.01,
                     help="Diabetes pedigree function"
                 )
                 
                 age = st.number_input(
                     "🎂 Age",
-                    min_value=1,
+                    min_value=0,
                     max_value=120,
-                    value=30,
+                    value=st.session_state.form_values["age"],
                     help="Age in years"
                 )
             
@@ -891,20 +903,42 @@ with tab1:
             with col2:
                 reset = st.form_submit_button("🔄 Reset Form", use_container_width=True)
         
-        # Handle Reset - outside the form
+        # Handle Reset - Reset all form values to 0
         if reset:
+            # Reset form values in session state
+            st.session_state.form_values = {
+                "pregnancies": 0,
+                "glucose": 0,
+                "blood_pressure": 0,
+                "skin": 0,
+                "insulin": 0,
+                "bmi": 0.0,
+                "dpf": 0.0,
+                "age": 0
+            }
             # Clear prediction results
             if "prediction" in st.session_state:
                 del st.session_state.prediction
                 del st.session_state.patient
                 del st.session_state.diabetes_prob
                 del st.session_state.healthy_prob
-            # Reset the form by rerunning
+            # Rerun to reflect changes
             st.rerun()
         
         if predict:
-            # Validate inputs
-            errors = validate_required_fields(glucose, blood_pressure, bmi, age, dpf)
+            # Validate inputs (allow 0 values for reset state)
+            errors = []
+            
+            if glucose <= 0:
+                errors.append("Glucose must be greater than 0.")
+            if blood_pressure <= 0:
+                errors.append("Blood Pressure must be greater than 0.")
+            if bmi <= 0:
+                errors.append("BMI must be greater than 0.")
+            if age <= 0:
+                errors.append("Age must be greater than 0.")
+            if dpf <= 0:
+                errors.append("Diabetes Pedigree Function must be greater than 0.")
             
             if errors:
                 for error in errors:
@@ -937,6 +971,18 @@ with tab1:
                 st.session_state.patient = patient
                 st.session_state.diabetes_prob = diabetes_prob
                 st.session_state.healthy_prob = healthy_prob
+                
+                # Store current values for persistence
+                st.session_state.form_values = {
+                    "pregnancies": pregnancies,
+                    "glucose": glucose,
+                    "blood_pressure": blood_pressure,
+                    "skin": skin,
+                    "insulin": insulin,
+                    "bmi": bmi,
+                    "dpf": dpf,
+                    "age": age
+                }
                 
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
