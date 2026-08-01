@@ -993,28 +993,37 @@ with tab1:
                 st.error(f"Error making prediction: {e}")
     
     # =====================================================
-    # CSV Upload
+    # CSV Upload - CORRECTED VERSION
     # =====================================================
     if st.session_state.mode == "upload":
         uploaded_file = st.file_uploader(
-            "📤 Upload CSV File",
-            type=["csv","xlsx", "xls"],
-            help="Upload a CSV file with the required columns"
+            "📤 Upload CSV or Excel File",
+            type=["csv", "xlsx", "xls"],
+            help="Upload a CSV or Excel file with the required columns."
         )
         
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
+        if uploaded_file is not None:
+            try:
+                if uploaded_file.name.lower().endswith(".csv"):
+                    df = pd.read_csv(uploaded_file)
+                else:
+                    df = pd.read_excel(uploaded_file)
                 
-                # Validate required columns
                 required_columns = [
-                    "Pregnancies", "Glucose", "BloodPressure", 
-                    "SkinThickness", "Insulin", "BMI", 
-                    "DiabetesPedigreeFunction", "Age"
+                    "Pregnancies",
+                    "Glucose",
+                    "BloodPressure",
+                    "SkinThickness",
+                    "Insulin",
+                    "BMI",
+                    "DiabetesPedigreeFunction",
+                    "Age"
                 ]
                 
-                missing_columns = [col for col in required_columns if col not in df.columns]
+                missing_columns = [
+                    col for col in required_columns
+                    if col not in df.columns
+                ]
                 
                 if missing_columns:
                     st.error(f"❌ Missing required columns: {', '.join(missing_columns)}")
@@ -1024,42 +1033,51 @@ with tab1:
                     
                     if st.button("🚀 Predict Uploaded Data", use_container_width=True):
                         with st.spinner("Making predictions..."):
-                            # Replace zero values
-                            zero_columns = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
+                            zero_columns = [
+                                "Glucose",
+                                "BloodPressure",
+                                "SkinThickness",
+                                "Insulin",
+                                "BMI"
+                            ]
+                            
                             df = replace_zero_values(df, zero_columns)
                             
-                            try:
-                                # Make predictions
-                                predictions = model.predict(df)
-                                probabilities = model.predict_proba(df)
-                                
-                                # Add results to dataframe
-                                df["Prediction"] = predictions
-                                df["Diabetes_Probability"] = (probabilities[:, 1] * 100).round(2)
-                                df["Risk_Level"] = pd.cut(
-                                    df["Diabetes_Probability"],
-                                    bins=[0, 20, 40, 60, 80, 100],
-                                    labels=["Low", "Mild", "Moderate", "High", "Very High"]
-                                )
-                                
-                                st.success("✅ Prediction completed successfully!")
-                                st.dataframe(df, use_container_width=True)
-                                
-                                # Download results
-                                csv = df.to_csv(index=False)
-                                st.download_button(
-                                    "💾 Download Results",
-                                    csv,
-                                    "predictions.csv",
-                                    "text/csv",
-                                    use_container_width=True
-                                )
-                                
-                            except Exception as e:
-                                st.error(f"Error making predictions: {e}")
+                            predictions = model.predict(df)
+                            probabilities = model.predict_proba(df)
                             
+                            df["Prediction"] = predictions
+                            df["Diabetes_Probability"] = (
+                                probabilities[:, 1] * 100
+                            ).round(2)
+                            
+                            df["Risk_Level"] = pd.cut(
+                                df["Diabetes_Probability"],
+                                bins=[0, 20, 40, 60, 80, 100],
+                                labels=[
+                                    "Low",
+                                    "Mild",
+                                    "Moderate",
+                                    "High",
+                                    "Very High"
+                                ]
+                            )
+                            
+                            st.success("✅ Prediction completed!")
+                            st.dataframe(df, use_container_width=True)
+                            
+                            csv = df.to_csv(index=False)
+                            
+                            st.download_button(
+                                "💾 Download Results",
+                                csv,
+                                "predictions.csv",
+                                "text/csv",
+                                use_container_width=True
+                            )
+            
             except pd.errors.EmptyDataError:
-                st.error("❌ The uploaded file is empty. Please upload a valid CSV file.")
+                st.error("❌ The uploaded file is empty. Please upload a valid file.")
             except Exception as e:
                 st.error(f"❌ Error reading file: {e}")
     
