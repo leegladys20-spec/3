@@ -37,7 +37,7 @@ def load_model():
 model, medians = load_model()
 
 # =====================================================
-# Custom CSS 
+# Custom CSS
 # =====================================================
 st.markdown("""
 <style>
@@ -146,6 +146,69 @@ div.stForm button:hover {
 }
 
 /* ============================================= */
+/* BMI Calculator - Bigger Inputs */
+/* ============================================= */
+.bmi-input-container {
+    background: white;
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+}
+
+.bmi-input-container .stNumberInput {
+    width: 100%;
+}
+
+.bmi-input-container .stNumberInput input {
+    font-size: 24px !important;
+    padding: 20px 15px !important;
+    height: 70px !important;
+    border-radius: 12px !important;
+    border: 2px solid #e0e0e0 !important;
+    transition: all 0.3s ease;
+}
+
+.bmi-input-container .stNumberInput input:focus {
+    border-color: #1A237E !important;
+    box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.1) !important;
+}
+
+.bmi-input-container .stNumberInput label {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #333 !important;
+    margin-bottom: 8px !important;
+}
+
+/* BMI Calculate Button - Full Width Below Inputs */
+.bmi-calculate-btn {
+    margin-top: 20px;
+}
+
+.bmi-calculate-btn button {
+    width: 100% !important;
+    height: 60px !important;
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    background: #1A237E !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+}
+
+.bmi-calculate-btn button:hover {
+    background: #283593 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 15px rgba(26, 35, 126, 0.3) !important;
+}
+
+.bmi-calculate-btn button:active {
+    transform: translateY(0px) !important;
+}
+
+/* ============================================= */
 /* Slider Styling - Dark Blue */
 /* ============================================= */
 div[data-baseweb="slider"] {
@@ -183,7 +246,7 @@ div[data-testid="stNumberInput"] button {
     border: none !important;
     border-radius: 4px !important;
     padding: 4px 8px !important;
-    font-size: 16px !important;
+    font-size: 18px !important;
     font-weight: 700 !important;
     min-width: 30px !important;
     min-height: 30px !important;
@@ -209,9 +272,8 @@ div[data-testid="stNumberInput"] button:focus {
     outline: none !important;
 }
 
-/* Remove the box around number input */
 div[data-testid="stNumberInput"] div[data-baseweb="input"] {
-    border: 1px solid #d0d5dd !important;
+    border: 2px solid #d0d5dd !important;
     border-radius: 8px !important;
     background: white !important;
 }
@@ -221,36 +283,9 @@ div[data-testid="stNumberInput"] div[data-baseweb="input"]:focus-within {
     box-shadow: 0 0 0 2px rgba(26, 35, 126, 0.1) !important;
 }
 
-/* File Uploader */
-div[data-testid="stFileUploader"] button {
-    background: #f0f2f6 !important;
-    color: #1a1a1a !important;
-    border: 1px solid #d0d5dd !important;
-    border-radius: 8px !important;
-}
-
-div[data-testid="stFileUploader"] button:hover {
-    background: #e4e7ec !important;
-    border-color: #b0b5bd !important;
-}
-
-/* Download Button */
-div[data-testid="stDownloadButton"] button {
-    background: #f0f2f6 !important;
-    color: #1a1a1a !important;
-    border: 1px solid #d0d5dd !important;
-    border-radius: 8px !important;
-}
-
-div[data-testid="stDownloadButton"] button:hover {
-    background: #e4e7ec !important;
-    border-color: #b0b5bd !important;
-}
-
 /* ============================================= */
-/* BMI Calculator Specific Styles */
+/* BMI Result Styles */
 /* ============================================= */
-
 .bmi-result-box {
     background: white;
     border-radius: 16px;
@@ -389,6 +424,32 @@ div[data-testid="stDownloadButton"] button:hover {
     border-left: 4px solid #1a237e;
 }
 
+/* File Uploader */
+div[data-testid="stFileUploader"] button {
+    background: #f0f2f6 !important;
+    color: #1a1a1a !important;
+    border: 1px solid #d0d5dd !important;
+    border-radius: 8px !important;
+}
+
+div[data-testid="stFileUploader"] button:hover {
+    background: #e4e7ec !important;
+    border-color: #b0b5bd !important;
+}
+
+/* Download Button */
+div[data-testid="stDownloadButton"] button {
+    background: #f0f2f6 !important;
+    color: #1a1a1a !important;
+    border: 1px solid #d0d5dd !important;
+    border-radius: 8px !important;
+}
+
+div[data-testid="stDownloadButton"] button:hover {
+    background: #e4e7ec !important;
+    border-color: #b0b5bd !important;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .bmi-info-grid {
@@ -396,6 +457,11 @@ div[data-testid="stDownloadButton"] button:hover {
     }
     .bmi-value-large {
         font-size: 40px;
+    }
+    .bmi-input-container .stNumberInput input {
+        font-size: 18px !important;
+        height: 55px !important;
+        padding: 15px !important;
     }
 }
 </style>
@@ -495,16 +561,19 @@ def display_recommendation(prediction):
         """)
 
 # =====================================================
-# BMI Calculator Component
+# BMI Calculator Component - Redesigned
 # =====================================================
 def bmi_calculator():
-    """BMI Calculator with modern UI"""
+    """BMI Calculator with bigger inputs and full-width layout"""
     
     st.markdown("<h1 style='text-align: center; color: #1A237E;'>⚖️ BMI Calculator</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #555; margin-bottom: 30px;'>Calculate your Body Mass Index and assess your health status</p>", unsafe_allow_html=True)
     
-    # Input columns
-    col1, col2, col3 = st.columns([1, 1, 1])
+    # Input Container - Full Width with bigger inputs
+    st.markdown('<div class="bmi-input-container">', unsafe_allow_html=True)
+    
+    # Weight and Height in two columns
+    col1, col2 = st.columns(2)
     
     with col1:
         weight = st.number_input(
@@ -513,7 +582,8 @@ def bmi_calculator():
             max_value=250.0,
             value=70.0,
             step=0.5,
-            help="Enter your weight in kilograms"
+            help="Enter your weight in kilograms",
+            key="bmi_weight"
         )
     
     with col2:
@@ -523,19 +593,20 @@ def bmi_calculator():
             max_value=2.50,
             value=1.70,
             step=0.01,
-            help="Enter your height in meters"
+            help="Enter your height in meters",
+            key="bmi_height"
         )
     
-    with col3:
-        if st.button("📊 Calculate BMI", use_container_width=True):
-            bmi = weight / (height ** 2)
-            st.session_state.bmi_result = bmi
-            st.session_state.bmi_calculated = True
-            st.rerun()
+    # Calculate Button - Full width below inputs
+    st.markdown('<div class="bmi-calculate-btn">', unsafe_allow_html=True)
+    calculate_clicked = st.button("📊 Calculate BMI", use_container_width=True, key="bmi_calculate")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
     
     # Display results if calculated
-    if "bmi_calculated" in st.session_state and st.session_state.bmi_calculated:
-        bmi = st.session_state.bmi_result
+    if calculate_clicked:
+        bmi = weight / (height ** 2)
         
         # Determine category
         if bmi < 18.5:
