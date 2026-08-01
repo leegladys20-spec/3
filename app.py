@@ -830,7 +830,7 @@ with tab1:
                 "pregnancies": 0,
                 "glucose": 0,
                 "blood_pressure": 0,
-                "skin": 0,
+                "skin": 0.5,  # Set to minimum valid value
                 "insulin": 0,
                 "bmi": 0.0,
                 "dpf": 0.0,
@@ -870,7 +870,8 @@ with tab1:
                     min_value=0.5,
                     max_value=4.0,
                     value=st.session_state.form_values["skin"],
-                    help="Triceps skin fold thickness"
+                    step=0.1,
+                    help="Triceps skin fold thickness (0.5 - 4.0 mm)"
                 )
             
             with right:
@@ -916,14 +917,14 @@ with tab1:
             with col2:
                 reset = st.form_submit_button("🔄 Reset Form", use_container_width=True)
         
-        # Handle Reset - Reset all form values to 0
+        # Handle Reset - Reset all form values to defaults
         if reset:
             # Reset form values in session state
             st.session_state.form_values = {
                 "pregnancies": 0,
                 "glucose": 0,
                 "blood_pressure": 0,
-                "skin": 0,
+                "skin": 0.5,  # Reset to minimum valid value
                 "insulin": 0,
                 "bmi": 0.0,
                 "dpf": 0.0,
