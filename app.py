@@ -998,13 +998,14 @@ with tab1:
     if st.session_state.mode == "upload":
         uploaded_file = st.file_uploader(
             "📤 Upload CSV File",
-            type=["csv"],
+            type=["csv""xlsx", "xls"],
             help="Upload a CSV file with the required columns"
         )
         
-        if uploaded_file:
-            try:
-                df = pd.read_csv(uploaded_file)
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
                 
                 # Validate required columns
                 required_columns = [
