@@ -37,7 +37,7 @@ def load_model():
 model, medians = load_model()
 
 # =====================================================
-# Custom CSS
+# Custom CSS with Normal Buttons
 # =====================================================
 st.markdown("""
 <style>
@@ -98,34 +98,131 @@ header {
     font-size: 17px;
 }
 
+/* Normal Button Styles - No Dark Blue */
 div.stButton > button {
     width: 100%;
-    background: #1A237E;
-    color: white;
-    border: none;
-    border-radius: 30px;
+    background: #f0f2f6;
+    color: #1a1a1a;
+    border: 1px solid #d0d5dd;
+    border-radius: 8px;
     height: 50px;
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 div.stButton > button:hover {
+    background: #e4e7ec;
+    border-color: #b0b5bd;
+    color: #1a1a1a;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+div.stButton > button:active {
+    transform: translateY(0px);
+}
+
+/* Form Button - Normal Style */
+div.stForm button {
+    background: #f0f2f6;
+    color: #1a1a1a;
+    border: 1px solid #d0d5dd;
+    border-radius: 8px;
+    height: 50px;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+div.stForm button:hover {
+    background: #e4e7ec;
+    border-color: #b0b5bd;
+    color: #1a1a1a;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Primary Action Button - Slightly different for primary actions */
+div.stButton > button.primary {
+    background: #1A237E;
+    color: white;
+    border: none;
+}
+
+div.stButton > button.primary:hover {
     background: #283593;
     color: white;
 }
 
-div.stForm button {
-    background: #1A237E;
-    color: white;
-    border-radius: 30px;
-    font-weight: bold;
-}
-
+/* Metrics */
 [data-testid="metric-container"] {
     background: white;
     border-radius: 12px;
     padding: 15px;
     box-shadow: 0px 3px 10px rgba(0,0,0,.08);
+}
+
+/* Number Input Buttons - Increment/Decrement */
+div[data-testid="stNumberInput"] button {
+    background: #f8f9fa !important;
+    color: #1a1a1a !important;
+    border: 1px solid #d0d5dd !important;
+    border-radius: 4px !important;
+    padding: 4px 8px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+}
+
+div[data-testid="stNumberInput"] button:hover {
+    background: #e9ecef !important;
+    border-color: #b0b5bd !important;
+    color: #1a1a1a !important;
+}
+
+div[data-testid="stNumberInput"] button:active {
+    background: #dee2e6 !important;
+}
+
+/* Slider - Normal styling */
+div[data-baseweb="slider"] {
+    margin-top: 5px;
+}
+
+div[data-baseweb="slider"] div[role="slider"] {
+    background: #6c757d !important;
+}
+
+div[data-baseweb="slider"] div[data-testid="stSliderTrack"] {
+    background: #e9ecef !important;
+}
+
+/* File Uploader */
+div[data-testid="stFileUploader"] button {
+    background: #f0f2f6 !important;
+    color: #1a1a1a !important;
+    border: 1px solid #d0d5dd !important;
+    border-radius: 8px !important;
+}
+
+div[data-testid="stFileUploader"] button:hover {
+    background: #e4e7ec !important;
+    border-color: #b0b5bd !important;
+}
+
+/* Download Button */
+div[data-testid="stDownloadButton"] button {
+    background: #f0f2f6 !important;
+    color: #1a1a1a !important;
+    border: 1px solid #d0d5dd !important;
+    border-radius: 8px !important;
+}
+
+div[data-testid="stDownloadButton"] button:hover {
+    background: #e4e7ec !important;
+    border-color: #b0b5bd !important;
 }
 </style>
 """, unsafe_allow_html=True)
