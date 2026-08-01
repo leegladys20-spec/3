@@ -482,8 +482,8 @@ def validate_required_fields(glucose, blood_pressure, bmi, age, dpf, skin, insul
     if blood_pressure <= 0 or blood_pressure > 200:
         errors.append("Blood Pressure must be between 1 and 200 mmHg.")
     
-    if skin < 0 or skin > 100:
-        errors.append("Skin Thickness must be between 0 and 100 mm.")
+    if skin < 0.5 or skin > 4.0:
+        errors.append("Skin Thickness must be between 0.5 and 4.0 mm.")
     
     if insulin < 0 or insulin > 900:
         errors.append("Insulin must be between 0 and 900 mu U/ml.")
@@ -867,8 +867,8 @@ with tab1:
                 
                 skin = st.number_input(
                     "📏 Skin Thickness (mm)",
-                    min_value=0,
-                    max_value=100,
+                    min_value=0.5,
+                    max_value=4.0,
                     value=st.session_state.form_values["skin"],
                     help="Triceps skin fold thickness"
                 )
