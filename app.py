@@ -4,6 +4,8 @@ import pickle
 import plotly.graph_objects as go
 import os
 import io
+from datetime import datetime
+import json
 
 # =====================================================
 # Page Configuration
@@ -449,6 +451,87 @@ div[data-testid="stDownloadButton"] button:hover {
     border-color: #b0b5bd !important;
 }
 
+/* Home Page Styles */
+.feature-card {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    text-align: center;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.feature-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.feature-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1A237E;
+    margin-bottom: 10px;
+}
+
+.feature-desc {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.stat-box {
+    background: white;
+    padding: 25px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.stat-number {
+    font-size: 36px;
+    font-weight: 800;
+    color: #1A237E;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+/* History Page Styles */
+.history-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border-left: 4px solid #1A237E;
+}
+
+.history-date {
+    font-size: 12px;
+    color: #888;
+}
+
+.history-result {
+    font-size: 16px;
+    font-weight: 600;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .bmi-info-grid {
@@ -461,6 +544,9 @@ div[data-testid="stDownloadButton"] button:hover {
         font-size: 18px !important;
         height: 55px !important;
         padding: 15px !important;
+    }
+    .stats-container {
+        grid-template-columns: 1fr 1fr;
     }
 }
 </style>
@@ -571,6 +657,49 @@ def display_recommendation(prediction):
         - Get annual health checkups
         - Practice healthy lifestyle habits
         """)
+
+def add_to_history(patient_data, prediction, diabetes_prob):
+    """Add prediction to history"""
+    if "history" not in st.session_state:
+        st.session_state.history = []
+    
+    history_entry = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "patient_data": patient_data.to_dict('records')[0] if isinstance(patient_data, pd.DataFrame) else patient_data,
+        "prediction": int(prediction),
+        "diabetes_probability": round(diabetes_prob, 2),
+        "risk_level": get_risk_level(diabetes_prob)
+    }
+    
+    st.session_state.history.insert(0, history_entry)  # Add to beginning
+    
+    # Keep only last 100 entries
+    if len(st.session_state.history) > 100:
+        st.session_state.history = st.session_state.history[:100]
+
+def get_risk_level(diabetes_prob):
+    """Get risk level based on probability"""
+    if diabetes_prob < 20:
+        return "Low"
+    elif diabetes_prob < 40:
+        return "Mild"
+    elif diabetes_prob < 60:
+        return "Moderate"
+    elif diabetes_prob < 80:
+        return "High"
+    else:
+        return "Very High"
+
+def get_risk_color(risk_level):
+    """Get color for risk level"""
+    colors = {
+        "Low": "#4CAF50",
+        "Mild": "#8BC34A",
+        "Moderate": "#FFC107",
+        "High": "#FF9800",
+        "Very High": "#F44336"
+    }
+    return colors.get(risk_level, "#666")
 
 # =====================================================
 # BMI Calculator Component - Redesigned
@@ -745,30 +874,338 @@ def bmi_calculator():
         """, unsafe_allow_html=True)
 
 # =====================================================
-# Navigation
+# Home Page
 # =====================================================
-tab1, tab2 = st.tabs([
-    "🩺 Diabetes Prediction",
-    "⚖️ BMI Calculator"
-])
-
-# =====================================================
-# BMI Calculator Tab
-# =====================================================
-with tab2:
-    bmi_calculator()
-
-# =====================================================
-# Diabetes Prediction Tab
-# =====================================================
-with tab1:
+def home_page():
     st.markdown(
-        "<h1 class='main-title'>🩺 Diabetes Prediction System</h1>",
+        "<h1 class='main-title'>🏥 Diabetes Prediction System</h1>",
         unsafe_allow_html=True
     )
     
     st.markdown(
-        "<p class='sub-title'>Early detection can save lives. Enter patient details below for risk assessment.</p>",
+        "<p class='sub-title'>An AI-powered tool for early diabetes risk assessment and health monitoring</p>",
+        unsafe_allow_html=True
+    )
+    
+    # Stats Section
+    st.markdown("### 📊 System Overview")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown("""
+        <div class="stat-box">
+            <div class="stat-number">98%</div>
+            <div class="stat-label">Model Accuracy</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="stat-box">
+            <div class="stat-number">8</div>
+            <div class="stat-label">Health Parameters</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        # Count total predictions
+        total_predictions = len(st.session_state.get("history", []))
+        st.markdown(f"""
+        <div class="stat-box">
+            <div class="stat-number">{total_predictions}</div>
+            <div class="stat-label">Total Predictions</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        # Count high risk predictions
+        high_risk = sum(1 for h in st.session_state.get("history", []) if h.get("risk_level") in ["High", "Very High"])
+        st.markdown(f"""
+        <div class="stat-box">
+            <div class="stat-number">{high_risk}</div>
+            <div class="stat-label">High Risk Cases</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Features Section
+    st.markdown("### 🚀 Features")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        <div class="feature-card">
+            <div class="feature-icon">🩺</div>
+            <div class="feature-title">Diabetes Prediction</div>
+            <div class="feature-desc">
+                AI-powered prediction using 8 health parameters with 98% accuracy.
+                Get instant risk assessment and personalized recommendations.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="feature-card">
+            <div class="feature-icon">⚖️</div>
+            <div class="feature-title">BMI Calculator</div>
+            <div class="feature-desc">
+                Calculate your Body Mass Index and get detailed health insights.
+                Track your weight status and receive lifestyle recommendations.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <div class="feature-title">History Tracking</div>
+            <div class="feature-desc">
+                View your prediction history and track health trends over time.
+                Monitor changes and make informed health decisions.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # How it works
+    st.markdown("### 📋 How It Works")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        **1️⃣ Enter Data**
+        - Manual input or CSV upload
+        - 8 health parameters required
+        - Age, Glucose, BMI, etc.
+        """)
+    
+    with col2:
+        st.markdown("""
+        **2️⃣ AI Analysis**
+        - Machine learning prediction
+        - 98% accuracy rate
+        - Instant risk assessment
+        """)
+    
+    with col3:
+        st.markdown("""
+        **3️⃣ Get Results**
+        - Risk probability score
+        - Visual gauge chart
+        - Personalized recommendations
+        """)
+    
+    st.markdown("---")
+    
+    # Quick Start
+    st.markdown("### 🎯 Quick Start")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("🩺 Make a Prediction", use_container_width=True):
+            st.session_state.active_tab = "Diabetes Prediction"
+            st.rerun()
+    
+    with col2:
+        if st.button("⚖️ Calculate BMI", use_container_width=True):
+            st.session_state.active_tab = "BMI Calculator"
+            st.rerun()
+
+# =====================================================
+# History Page
+# =====================================================
+def history_page():
+    st.markdown(
+        "<h1 class='main-title'>📊 Prediction History</h1>",
+        unsafe_allow_html=True
+    )
+    
+    st.markdown(
+        "<p class='sub-title'>View your past predictions and track health trends</p>",
+        unsafe_allow_html=True
+    )
+    
+    if "history" not in st.session_state or not st.session_state.history:
+        st.info("📭 No predictions in history yet. Start by making a prediction!")
+        
+        if st.button("🩺 Go to Prediction", use_container_width=True):
+            st.session_state.active_tab = "Diabetes Prediction"
+            st.rerun()
+        return
+    
+    # Summary statistics
+    total = len(st.session_state.history)
+    high_risk = sum(1 for h in st.session_state.history if h.get("risk_level") in ["High", "Very High"])
+    diabetic = sum(1 for h in st.session_state.history if h.get("prediction") == 1)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total Predictions", total)
+    with col2:
+        st.metric("High Risk", high_risk, delta=f"{high_risk/total*100:.1f}%" if total > 0 else "0%")
+    with col3:
+        st.metric("Diabetes Detected", diabetic, delta=f"{diabetic/total*100:.1f}%" if total > 0 else "0%")
+    with col4:
+        st.metric("Low Risk", total - high_risk, delta=f"{(total-high_risk)/total*100:.1f}%" if total > 0 else "0%")
+    
+    st.markdown("---")
+    
+    # History list
+    st.markdown("### 📋 Prediction Records")
+    
+    # Filter options
+    filter_col1, filter_col2 = st.columns(2)
+    
+    with filter_col1:
+        risk_filter = st.selectbox(
+            "Filter by Risk Level",
+            ["All", "Low", "Mild", "Moderate", "High", "Very High"]
+        )
+    
+    with filter_col2:
+        sort_order = st.selectbox(
+            "Sort by",
+            ["Newest First", "Oldest First", "Highest Risk", "Lowest Risk"]
+        )
+    
+    # Filter and sort history
+    filtered_history = st.session_state.history.copy()
+    
+    if risk_filter != "All":
+        filtered_history = [h for h in filtered_history if h.get("risk_level") == risk_filter]
+    
+    if sort_order == "Newest First":
+        filtered_history.sort(key=lambda x: x["timestamp"], reverse=True)
+    elif sort_order == "Oldest First":
+        filtered_history.sort(key=lambda x: x["timestamp"])
+    elif sort_order == "Highest Risk":
+        filtered_history.sort(key=lambda x: x.get("diabetes_probability", 0), reverse=True)
+    elif sort_order == "Lowest Risk":
+        filtered_history.sort(key=lambda x: x.get("diabetes_probability", 0))
+    
+    # Display history entries
+    for entry in filtered_history:
+        risk_level = entry.get("risk_level", "Unknown")
+        color = get_risk_color(risk_level)
+        
+        with st.container():
+            st.markdown(f"""
+            <div class="history-card" style="border-left-color: {color};">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span class="history-date">🕐 {entry['timestamp']}</span>
+                        <br>
+                        <span class="history-result" style="color: {color};">
+                            {entry['prediction'] == 1 and '🔴' or '🟢'} 
+                            {entry['prediction'] == 1 and 'Diabetes Detected' or 'No Diabetes'}
+                        </span>
+                        <br>
+                        <span style="font-size: 14px; color: #666;">
+                            Risk Level: <strong style="color: {color};">{risk_level}</strong>
+                            | Probability: <strong>{entry.get('diabetes_probability', 0)}%</strong>
+                        </span>
+                    </div>
+                    <div style="text-align: right; font-size: 12px; color: #888;">
+                        <span>Pregnancies: {entry.get('patient_data', {}).get('Pregnancies', 'N/A')}</span><br>
+                        <span>Glucose: {entry.get('patient_data', {}).get('Glucose', 'N/A')}</span><br>
+                        <span>BMI: {entry.get('patient_data', {}).get('BMI', 'N/A')}</span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Export functionality
+    st.markdown("---")
+    st.markdown("### 💾 Export History")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("🗑️ Clear History", use_container_width=True):
+            st.session_state.history = []
+            st.rerun()
+    
+    with col2:
+        if st.session_state.history:
+            # Convert history to DataFrame for export
+            export_data = []
+            for entry in st.session_state.history:
+                row = {
+                    "Timestamp": entry["timestamp"],
+                    "Prediction": "Diabetes" if entry["prediction"] == 1 else "No Diabetes",
+                    "Diabetes_Probability": entry.get("diabetes_probability", 0),
+                    "Risk_Level": entry.get("risk_level", "Unknown")
+                }
+                # Add patient data
+                patient_data = entry.get("patient_data", {})
+                for key, value in patient_data.items():
+                    row[key] = value
+                export_data.append(row)
+            
+            df_export = pd.DataFrame(export_data)
+            csv = df_export.to_csv(index=False)
+            
+            st.download_button(
+                "📥 Download History as CSV",
+                csv,
+                "prediction_history.csv",
+                "text/csv",
+                use_container_width=True
+            )
+
+# =====================================================
+# Navigation
+# =====================================================
+# Use session state to track active tab
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = "Home"
+
+# Create tabs
+tab_home, tab_diabetes, tab_bmi, tab_history = st.tabs([
+    "🏠 Home",
+    "🩺 Diabetes Prediction",
+    "⚖️ BMI Calculator",
+    "📊 History"
+])
+
+# =====================================================
+# Home Tab
+# =====================================================
+with tab_home:
+    home_page()
+
+# =====================================================
+# BMI Calculator Tab
+# =====================================================
+with tab_bmi:
+    bmi_calculator()
+
+# =====================================================
+# History Tab
+# =====================================================
+with tab_history:
+    history_page()
+
+# =====================================================
+# Diabetes Prediction Tab
+# =====================================================
+with tab_diabetes:
+    st.markdown(
+        "<h1 class='main-title'>🩺 Diabetes Prediction</h1>",
+        unsafe_allow_html=True
+    )
+    
+    st.markdown(
+        "<p class='sub-title'>Enter patient details below for risk assessment.</p>",
         unsafe_allow_html=True
     )
     
@@ -962,12 +1399,12 @@ with tab1:
             
             # Replace zero values with medians
             zero_columns = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
-            patient = replace_zero_values(patient, zero_columns)
+            patient_processed = replace_zero_values(patient.copy(), zero_columns)
             
             # Make prediction
             try:
-                prediction = model.predict(patient)[0]
-                probability = model.predict_proba(patient)[0]
+                prediction = model.predict(patient_processed)[0]
+                probability = model.predict_proba(patient_processed)[0]
                 
                 diabetes_prob = probability[1] * 100
                 healthy_prob = probability[0] * 100
@@ -989,11 +1426,14 @@ with tab1:
                     "age": age
                 }
                 
+                # Add to history
+                add_to_history(patient_processed, prediction, diabetes_prob)
+                
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
     
     # =====================================================
-    # CSV Upload - CORRECTED VERSION
+    # CSV Upload
     # =====================================================
     if st.session_state.mode == "upload":
         uploaded_file = st.file_uploader(
@@ -1041,10 +1481,11 @@ with tab1:
                                 "BMI"
                             ]
                             
-                            df = replace_zero_values(df, zero_columns)
+                            df_processed = df.copy()
+                            df_processed = replace_zero_values(df_processed, zero_columns)
                             
-                            predictions = model.predict(df)
-                            probabilities = model.predict_proba(df)
+                            predictions = model.predict(df_processed)
+                            probabilities = model.predict_proba(df_processed)
                             
                             df["Prediction"] = predictions
                             df["Diabetes_Probability"] = (
@@ -1062,6 +1503,14 @@ with tab1:
                                     "Very High"
                                 ]
                             )
+                            
+                            # Add to history for each prediction
+                            for idx, row in df_processed.iterrows():
+                                add_to_history(
+                                    row.to_dict(),
+                                    predictions[idx],
+                                    probabilities[idx][1] * 100
+                                )
                             
                             st.success("✅ Prediction completed!")
                             st.dataframe(df, use_container_width=True)
@@ -1111,16 +1560,9 @@ with tab1:
                 st.metric("Healthy Probability", f"{healthy_prob:.2f}%")
             
             # Risk Level
-            if diabetes_prob < 20:
-                st.success("🟢 Risk Level: LOW")
-            elif diabetes_prob < 40:
-                st.info("🟡 Risk Level: MILD")
-            elif diabetes_prob < 60:
-                st.warning("🟠 Risk Level: MODERATE")
-            elif diabetes_prob < 80:
-                st.warning("🔶 Risk Level: HIGH")
-            else:
-                st.error("🔴 Risk Level: VERY HIGH")
+            risk_level = get_risk_level(diabetes_prob)
+            color = get_risk_color(risk_level)
+            st.markdown(f"**Risk Level:** <span style='color: {color}; font-weight: bold;'>{risk_level}</span>", unsafe_allow_html=True)
         
         # Gauge Chart
         with col2:
