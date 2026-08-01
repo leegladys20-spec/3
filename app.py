@@ -469,33 +469,33 @@ div[data-testid="stDownloadButton"] button:hover {
 # =====================================================
 # Helper Functions
 # =====================================================
-def validate_required_fields(glucose, blood_pressure, bmi, age, dpf):
+def validate_required_fields(glucose, blood_pressure, bmi, age, dpf, skin, insulin, pregnancies):
     """Validate required fields for prediction"""
     errors = []
     
+    if pregnancies < 0 or pregnancies > 20:
+        errors.append("Pregnancies must be between 0 and 20.")
+    
     if glucose <= 0 or glucose > 300:
-    errors.append("Glucose must be between 1 and 300 mg/dL.")
-
-if blood_pressure <= 0 or blood_pressure > 200:
-    errors.append("Blood Pressure must be between 1 and 200 mmHg.")
-
-if skin < 0 or skin > 100:
-    errors.append("Skin Thickness must be between 0 and 100 mm.")
-
-if insulin < 0 or insulin > 900:
-    errors.append("Insulin must be between 0 and 900 mu U/ml.")
-
-if bmi <= 0 or bmi > 100:
-    errors.append("BMI must be between 0.1 and 100 kg/m².")
-
-if age < 1 or age > 120:
-    errors.append("Age must be between 1 and 120 years.")
-
-if dpf <= 0 or dpf > 3:
-    errors.append("Diabetes Pedigree Function must be between 0.01 and 3.0.")
-
-if pregnancies < 0 or pregnancies > 20:
-    errors.append("Pregnancies must be between 0 and 20.")
+        errors.append("Glucose must be between 1 and 300 mg/dL.")
+    
+    if blood_pressure <= 0 or blood_pressure > 200:
+        errors.append("Blood Pressure must be between 1 and 200 mmHg.")
+    
+    if skin < 0 or skin > 100:
+        errors.append("Skin Thickness must be between 0 and 100 mm.")
+    
+    if insulin < 0 or insulin > 900:
+        errors.append("Insulin must be between 0 and 900 mu U/ml.")
+    
+    if bmi <= 0 or bmi > 100:
+        errors.append("BMI must be between 0.1 and 100 kg/m².")
+    
+    if age < 1 or age > 120:
+        errors.append("Age must be between 1 and 120 years.")
+    
+    if dpf <= 0 or dpf > 3:
+        errors.append("Diabetes Pedigree Function must be between 0.01 and 3.0.")
     
     return errors
 
@@ -885,7 +885,7 @@ with tab1:
                 bmi = st.number_input(
                     "⚖️ BMI",
                     min_value=0.0,
-                    max_value=70.0,
+                    max_value=100.0,
                     value=st.session_state.form_values["bmi"],
                     step=0.1,
                     help="Body Mass Index"
@@ -939,19 +939,10 @@ with tab1:
             st.rerun()
         
         if predict:
-            # Validate inputs (allow 0 values for reset state)
-            errors = []
-            
-            if glucose <= 0:
-                errors.append("Glucose must be between 1 and 300 mg/dL.")
-            if blood_pressure <= 0:
-                errors.append("Blood Pressure must be between 1 and 200 mmHg.")
-            if bmi <= 0:
-                errors.append("BMI must be between 0.1 and 100 kg/m².")
-            if age <= 0:
-                errors.append("Age must be between 1 and 120 years.")
-            if dpf <= 0:
-                errors.append("Diabetes Pedigree Function must be between 0.01 and 3.0.")
+            # Validate all inputs
+            errors = validate_required_fields(
+                glucose, blood_pressure, bmi, age, dpf, skin, insulin, pregnancies
+            )
             
             if errors:
                 for error in errors:
