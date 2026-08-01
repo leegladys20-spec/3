@@ -998,7 +998,7 @@ with tab1:
     if st.session_state.mode == "upload":
         uploaded_file = st.file_uploader(
             "📤 Upload CSV File",
-            type=["csv""xlsx", "xls"],
+            type=["csv","xlsx", "xls"],
             help="Upload a CSV file with the required columns"
         )
         
