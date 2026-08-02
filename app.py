@@ -1590,14 +1590,23 @@ def _scroll_insights_to_top():
     scrolling container (window, <body>, section.main, or one of the
     stAppViewContainer/stMain test-id divs), so this resets all of them,
     and retries a few times shortly after render since Streamlit keeps
-    reflowing content for a moment after the rerun starts."""
+    reflowing content for a moment after the rerun starts.
+
+    IMPORTANT: the injected HTML must be different on every call. If the
+    exact same markup is passed to components.html() twice in a row, the
+    browser treats the iframe as unchanged and never reloads it, so the
+    script only actually runs the very first time. A unique nonce forces
+    a fresh iframe (and therefore a fresh script execution) on every
+    single Back/Next click, not just the first one."""
     if st.session_state.get("insights_scroll_top"):
         st.session_state["insights_scroll_top"] = False
+        nonce = uuid.uuid4().hex
         components.html(
-            """
+            f"""
             <script>
-                function scrollAppToTop() {
-                    try {
+                // nonce: {nonce} (forces this iframe to reload every time)
+                function scrollAppToTop() {{
+                    try {{
                         var w = window.parent;
                         var doc = w.document;
                         w.scrollTo(0, 0);
@@ -1610,12 +1619,12 @@ def _scroll_insights_to_top():
                             '[data-testid="stAppViewContainer"] > div',
                             '.main .block-container'
                         ];
-                        selectors.forEach(function (sel) {
+                        selectors.forEach(function (sel) {{
                             var el = doc.querySelector(sel);
-                            if (el) { el.scrollTop = 0; }
-                        });
-                    } catch (e) {}
-                }
+                            if (el) {{ el.scrollTop = 0; }}
+                        }});
+                    }} catch (e) {{}}
+                }}
                 scrollAppToTop();
                 setTimeout(scrollAppToTop, 50);
                 setTimeout(scrollAppToTop, 150);
