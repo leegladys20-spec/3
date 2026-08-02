@@ -1584,17 +1584,43 @@ def _scroll_insights_to_top():
     """If the Back/Next buttons were just clicked, force the browser back
     to the top of the page. Streamlit reruns in place and normally keeps
     the current scroll position, which would strand the person mid-page
-    looking at a half-rendered new section."""
+    looking at a half-rendered new section.
+
+    Different Streamlit versions use different elements as the actual
+    scrolling container (window, <body>, section.main, or one of the
+    stAppViewContainer/stMain test-id divs), so this resets all of them,
+    and retries a few times shortly after render since Streamlit keeps
+    reflowing content for a moment after the rerun starts."""
     if st.session_state.get("insights_scroll_top"):
         st.session_state["insights_scroll_top"] = False
         components.html(
             """
             <script>
-                var doc = window.parent.document;
-                doc.documentElement.scrollTo({top: 0, behavior: "instant"});
-                doc.body.scrollTo({top: 0, behavior: "instant"});
-                var main = doc.querySelector('section.main') || doc.querySelector('[data-testid="stAppViewContainer"]');
-                if (main) { main.scrollTo({top: 0, behavior: "instant"}); }
+                function scrollAppToTop() {
+                    try {
+                        var w = window.parent;
+                        var doc = w.document;
+                        w.scrollTo(0, 0);
+                        doc.documentElement.scrollTop = 0;
+                        doc.body.scrollTop = 0;
+                        var selectors = [
+                            'section.main',
+                            '[data-testid="stMain"]',
+                            '[data-testid="stAppViewContainer"]',
+                            '[data-testid="stAppViewContainer"] > div',
+                            '.main .block-container'
+                        ];
+                        selectors.forEach(function (sel) {
+                            var el = doc.querySelector(sel);
+                            if (el) { el.scrollTop = 0; }
+                        });
+                    } catch (e) {}
+                }
+                scrollAppToTop();
+                setTimeout(scrollAppToTop, 50);
+                setTimeout(scrollAppToTop, 150);
+                setTimeout(scrollAppToTop, 350);
+                setTimeout(scrollAppToTop, 600);
             </script>
             """,
             height=0,
