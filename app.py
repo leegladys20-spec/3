@@ -1447,10 +1447,11 @@ st.markdown("""
     margin: 6px 0 4px 0;
 }
 .insight-section-sub {
-    color: #666;
-    font-size: 14.5px;
-    line-height: 1.6;
+    color: #444;
+    font-size: 16.5px;
+    line-height: 1.85;
     margin-bottom: 22px;
+    text-align: justify;
 }
 .insight-stat-card {
     background: white;
@@ -1482,6 +1483,7 @@ st.markdown("""
     line-height: 1.85;
     margin-top: 14px;
     margin-bottom: 6px;
+    text-align: justify;
 }
 .insight-missing-box {
     background: #fff8e1;
@@ -1496,6 +1498,14 @@ st.markdown("""
     border: none;
     border-top: 2px dotted #b0b8e0;
     margin: 30px 0;
+}
+.insight-nav-step {
+    text-align: center;
+    color: #8891bb;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    padding-top: 10px;
 }
 div[data-testid="stRadio"] > div {
     gap: 6px;
@@ -1557,6 +1567,12 @@ def insight_group_header(title, subtitle):
     <div class="insight-section-sub">{subtitle}</div>
     """, unsafe_allow_html=True)
 
+def _set_insights_section(section_name):
+    """Callback for the Back/Next navigation buttons below each section.
+    Runs before the script reruns, so it's safe to write to the radio's
+    own session_state key here (unlike doing it in the main script body)."""
+    st.session_state["insights_section"] = section_name
+
 def model_insights_page():
     """NEW PAGE: shows every chart produced by DiabetesPredictor_TrainingCode.ipynb,
     grouped into EDA / Preprocessing / Model Performance / Feature Importance /
@@ -1590,9 +1606,11 @@ def model_insights_page():
 
     st.markdown("<div style='margin-top:18px;'></div>", unsafe_allow_html=True)
 
+    insights_sections = ["🔍 EDA", "🧹 Preprocessing", "🤖 Model Performance", "🌟 Feature Importance", "🏆 Final Comparison"]
+
     section = st.radio(
         "Section",
-        ["🔍 EDA", "🧹 Preprocessing", "🤖 Model Performance", "🌟 Feature Importance", "🏆 Final Comparison"],
+        insights_sections,
         horizontal=True,
         label_visibility="collapsed",
         key="insights_section"
@@ -1891,6 +1909,41 @@ def model_insights_page():
             "and powers every single prediction in this app.</div>",
             unsafe_allow_html=True
         )
+
+    # =====================================================
+    # Section navigation — Back / Next buttons
+    # First section only shows Next, last section only shows Back,
+    # everything in between shows both.
+    # =====================================================
+    insight_divider()
+    current_idx = insights_sections.index(section)
+    is_first = current_idx == 0
+    is_last = current_idx == len(insights_sections) - 1
+
+    nav_back, nav_step, nav_next = st.columns([1, 1, 1])
+    with nav_back:
+        if not is_first:
+            st.button(
+                f"⬅️  {insights_sections[current_idx - 1]}",
+                use_container_width=True,
+                key="insights_nav_back",
+                on_click=_set_insights_section,
+                args=(insights_sections[current_idx - 1],)
+            )
+    with nav_step:
+        st.markdown(
+            f'<div class="insight-nav-step">SECTION {current_idx + 1} OF {len(insights_sections)}</div>',
+            unsafe_allow_html=True
+        )
+    with nav_next:
+        if not is_last:
+            st.button(
+                f"{insights_sections[current_idx + 1]}  ➡️",
+                use_container_width=True,
+                key="insights_nav_next",
+                on_click=_set_insights_section,
+                args=(insights_sections[current_idx + 1],)
+            )
 
 # =====================================================
 # Navigation - Tabs
