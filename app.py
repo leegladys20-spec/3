@@ -1493,7 +1493,7 @@ with tab_diabetes:
         manual = st.button("✏️ Manual Input", use_container_width=True)
     
     with col2:
-        upload = st.button("📁 Upload File", use_container_width=True)
+        upload = st.button("📁 Upload Upload", use_container_width=True)
     
     if "mode" not in st.session_state:
         st.session_state.mode = "manual"
