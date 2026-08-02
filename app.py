@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import pickle
 import plotly.graph_objects as go
@@ -1545,12 +1546,15 @@ def show_insight_plot(filename, icon, title, explanation, caption=None):
         """, unsafe_allow_html=True)
     st.markdown(f'<div class="insight-plot-desc">{explanation}</div>', unsafe_allow_html=True)
 
-def insight_divider():
+def insight_divider(margin=None):
     """A simple dotted-line separator between chart blocks (used instead of
     the old card-box wrapper, which rendered as a stray empty box in
     Streamlit because opening/closing <div> tags can't span separate
-    st.markdown calls)."""
-    st.markdown('<hr class="insight-divider">', unsafe_allow_html=True)
+    st.markdown calls). Pass a custom `margin` (e.g. "20px 0 8px 0") to
+    override the default spacing for a specific spot, like just above the
+    Back/Next navigation row."""
+    style = f' style="margin:{margin};"' if margin else ""
+    st.markdown(f'<hr class="insight-divider"{style}>', unsafe_allow_html=True)
 
 def show_insight_plot_slot(filename, caption=None):
     """Render just the image (or placeholder) for use inside multi-column
@@ -1570,8 +1574,31 @@ def insight_group_header(title, subtitle):
 def _set_insights_section(section_name):
     """Callback for the Back/Next navigation buttons below each section.
     Runs before the script reruns, so it's safe to write to the radio's
-    own session_state key here (unlike doing it in the main script body)."""
+    own session_state key here (unlike doing it in the main script body).
+    Also flags that the page should jump back to the top once the new
+    section renders, so the person doesn't land mid-scroll on new content."""
     st.session_state["insights_section"] = section_name
+    st.session_state["insights_scroll_top"] = True
+
+def _scroll_insights_to_top():
+    """If the Back/Next buttons were just clicked, force the browser back
+    to the top of the page. Streamlit reruns in place and normally keeps
+    the current scroll position, which would strand the person mid-page
+    looking at a half-rendered new section."""
+    if st.session_state.get("insights_scroll_top"):
+        st.session_state["insights_scroll_top"] = False
+        components.html(
+            """
+            <script>
+                var doc = window.parent.document;
+                doc.documentElement.scrollTo({top: 0, behavior: "instant"});
+                doc.body.scrollTo({top: 0, behavior: "instant"});
+                var main = doc.querySelector('section.main') || doc.querySelector('[data-testid="stAppViewContainer"]');
+                if (main) { main.scrollTo({top: 0, behavior: "instant"}); }
+            </script>
+            """,
+            height=0,
+        )
 
 def model_insights_page():
     """NEW PAGE: shows every chart produced by DiabetesPredictor_TrainingCode.ipynb,
@@ -1579,6 +1606,7 @@ def model_insights_page():
     Final Comparison, each with a plain-language explanation."""
 
     st.markdown("<h1 class='main-title'>📈 Model Insights & Visualizations</h1>", unsafe_allow_html=True)
+    _scroll_insights_to_top()
     st.markdown(
         "<p class='sub-title'>A behind-the-scenes look at the data, the cleaning steps, and the model "
         "evaluation behind this app — straight from the training notebook.</p>",
@@ -1660,7 +1688,6 @@ def model_insights_page():
             "forces the model to pay closer attention to the minority (diabetic) class during training, which "
             "is reflected later in the Recall scores on the Model Performance tab."
         )
-        insight_divider()
 
     # =====================================================
     # SECTION 2 — Preprocessing
@@ -1735,7 +1762,6 @@ def model_insights_page():
             "three stages next to each other makes it easy to sanity-check that each preprocessing step is "
             "doing what it's supposed to, instead of accidentally distorting the data."
         )
-        insight_divider()
 
     # =====================================================
     # SECTION 3 — Model Performance
@@ -1838,7 +1864,6 @@ def model_insights_page():
             "predict on new patients. This chart is the concrete evidence that made Random Forest the clear "
             "choice to carry forward into hyperparameter tuning, ahead of both KNN and SVM."
         )
-        insight_divider()
 
     # =====================================================
     # SECTION 4 — Feature Importance
@@ -1869,7 +1894,6 @@ def model_insights_page():
                 "were adding mostly noise rather than real signal. It's a useful sanity check, even though the "
                 "app itself still collects all 8 fields to stay compatible with the deployed model."
             )
-        insight_divider()
 
     # =====================================================
     # SECTION 5 — Final Comparison
@@ -1915,7 +1939,7 @@ def model_insights_page():
     # First section only shows Next, last section only shows Back,
     # everything in between shows both.
     # =====================================================
-    insight_divider()
+    insight_divider(margin="26px 0 10px 0")
     current_idx = insights_sections.index(section)
     is_first = current_idx == 0
     is_last = current_idx == len(insights_sections) - 1
